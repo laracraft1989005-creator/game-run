@@ -12,8 +12,9 @@ const COLLISION_DIMS = {
 };
 
 export class CityChunk {
-    constructor(scene, assetManager) {
+    constructor(scene, assetManager, textureGen) {
         this.assetManager = assetManager;
+        this.textureGen = textureGen;
         this.group = new THREE.Group();
         this.obstacles = [];
         this.buildings = [];
@@ -85,9 +86,11 @@ export class CityChunk {
     }
 
     _buildFallbackRoad() {
-        // 路面
         const roadGeo = new THREE.PlaneGeometry(ROAD_WIDTH, CHUNK_LENGTH);
-        const roadMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
+        const roadTex = this.textureGen ? this.textureGen.get('road') : null;
+        const roadMat = roadTex
+            ? new THREE.MeshStandardMaterial({ map: roadTex, roughness: 0.9 })
+            : new THREE.MeshStandardMaterial({ color: 0x444444 });
         const road = new THREE.Mesh(roadGeo, roadMat);
         road.rotation.x = -Math.PI / 2;
         road.receiveShadow = true;
@@ -96,24 +99,29 @@ export class CityChunk {
         this.group.add(road);
         this.roadMeshes.push(road);
 
-        // 车道线
-        const lineGeo = new THREE.PlaneGeometry(0.15, CHUNK_LENGTH);
-        const lineMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
-        for (let i = -1; i <= 1; i += 2) {
-            const line = new THREE.Mesh(lineGeo, lineMat);
-            line.rotation.x = -Math.PI / 2;
-            line.position.set(i * 3, 0.01, 0);
-            line.matrixAutoUpdate = false;
-            line.updateMatrix();
-            this.group.add(line);
-            this.roadMeshes.push(line);
+        // 纹理已包含标线，无需手动车道线
+        if (!roadTex) {
+            const lineGeo = new THREE.PlaneGeometry(0.15, CHUNK_LENGTH);
+            const lineMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+            for (let i = -1; i <= 1; i += 2) {
+                const line = new THREE.Mesh(lineGeo, lineMat);
+                line.rotation.x = -Math.PI / 2;
+                line.position.set(i * 3, 0.01, 0);
+                line.matrixAutoUpdate = false;
+                line.updateMatrix();
+                this.group.add(line);
+                this.roadMeshes.push(line);
+            }
         }
     }
 
     _buildSidewalks() {
         for (const side of [-1, 1]) {
             const swGeo = new THREE.BoxGeometry(2, 0.25, CHUNK_LENGTH);
-            const swMat = new THREE.MeshStandardMaterial({ color: 0xAAAAAA });
+            const swTex = this.textureGen ? this.textureGen.get('sidewalk') : null;
+            const swMat = swTex
+                ? new THREE.MeshStandardMaterial({ map: swTex, roughness: 0.85 })
+                : new THREE.MeshStandardMaterial({ color: 0xAAAAAA });
             const sw = new THREE.Mesh(swGeo, swMat);
             sw.position.set(side * (ROAD_WIDTH / 2 + 1), 0.125, 0);
             sw.receiveShadow = true;
@@ -191,8 +199,14 @@ export class CityChunk {
         const h = 4 + Math.random() * 12;
         const d = 4 + Math.random() * 4;
         const geo = new THREE.BoxGeometry(w, h, d);
-        const color = BUILDING_COLORS[Math.floor(Math.random() * BUILDING_COLORS.length)];
-        const mat = new THREE.MeshStandardMaterial({ color, flatShading: true });
+        const texKey = 'building_' + Math.floor(Math.random() * 10);
+        const buildTex = this.textureGen ? this.textureGen.get(texKey) : null;
+        const mat = buildTex
+            ? new THREE.MeshStandardMaterial({ map: buildTex, roughness: 0.7, metalness: 0.1 })
+            : new THREE.MeshStandardMaterial({
+                color: BUILDING_COLORS[Math.floor(Math.random() * BUILDING_COLORS.length)],
+                flatShading: true
+            });
         const bld = new THREE.Mesh(geo, mat);
         bld.position.set(baseX + side * w / 2, h / 2, z + d / 2);
         bld.castShadow = true;
@@ -316,16 +330,23 @@ export class CityChunk {
             const scaledSize = scaledBbox.getSize(new THREE.Vector3());
             mesh.position.set(LANES[lane], scaledSize.y / 2, z);
         } else {
-            // 兜底: 彩色方块
-            let geo, color;
+            // 兜底: 贴图方块
+            let geo, fallbackColor, texKey, emissive;
             if (type === 'low') {
                 geo = new THREE.BoxGeometry(2, 1, 1);
-                color = 0xFF4444;
+                fallbackColor = 0xFF4444;
+                texKey = 'obstacle_low';
+                emissive = 0x331111;
             } else {
                 geo = new THREE.BoxGeometry(2, 2.5, 1);
-                color = 0xFF8800;
+                fallbackColor = 0xFF8800;
+                texKey = 'obstacle_full';
+                emissive = 0x332200;
             }
-            const mat = new THREE.MeshStandardMaterial({ color });
+            const obsTex = this.textureGen ? this.textureGen.get(texKey) : null;
+            const mat = obsTex
+                ? new THREE.MeshStandardMaterial({ map: obsTex, roughness: 0.6, emissive, emissiveIntensity: 0.2 })
+                : new THREE.MeshStandardMaterial({ color: fallbackColor });
             mesh = new THREE.Mesh(geo, mat);
             mesh.position.set(LANES[lane], dims.yOff, z);
         }

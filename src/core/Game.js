@@ -5,6 +5,7 @@ import { SkyController } from '../rendering/SkyController.js';
 import { CameraController } from '../rendering/CameraController.js';
 import { InputManager } from './InputManager.js';
 import { AssetManager } from './AssetManager.js';
+import { TextureGenerator } from '../rendering/TextureGenerator.js';
 import { PlayerController } from '../player/PlayerController.js';
 import { CollisionDetector } from '../player/CollisionDetector.js';
 import { ChunkManager } from '../world/ChunkManager.js';
@@ -32,9 +33,16 @@ export class Game {
         this.score = new ScoreManager();
         this.difficulty = new DifficultyManager();
 
-        // 地面 (城市地面用深灰色)
+        // 程序化纹理 (同步生成，加载画面之前)
+        this.textureGen = new TextureGenerator();
+        this.textureGen.generateAll();
+
+        // 地面
         const groundGeo = new THREE.PlaneGeometry(200, 1000);
-        const groundMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
+        const groundTex = this.textureGen.get('ground');
+        const groundMat = groundTex
+            ? new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.95 })
+            : new THREE.MeshStandardMaterial({ color: 0x555555 });
         this.ground = new THREE.Mesh(groundGeo, groundMat);
         this.ground.rotation.x = -Math.PI / 2;
         this.ground.position.y = -0.05;
@@ -83,8 +91,8 @@ export class Game {
         // 隐藏 loading，显示菜单
         this.uiLoading.classList.add('hidden');
 
-        // 创建世界分块管理器 (依赖 assetManager)
-        this.chunks = new ChunkManager(this.scene, this.assetManager);
+        // 创建世界分块管理器 (依赖 assetManager + textureGen)
+        this.chunks = new ChunkManager(this.scene, this.assetManager, this.textureGen);
         this.chunks.reset();
         this.chunks.update(0, 0);
 

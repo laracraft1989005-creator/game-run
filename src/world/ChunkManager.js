@@ -6,16 +6,17 @@ const RECYCLE_DISTANCE = 40;
 const POOL_SIZE = 6;
 
 export class ChunkManager {
-    constructor(scene, assetManager) {
+    constructor(scene, assetManager, textureGen) {
         this.scene = scene;
         this.assetManager = assetManager;
+        this.textureGen = textureGen;
         this.chunks = [];
         this.pool = [];
         this.nextChunkZ = 0;
 
         // 预创建分块池
         for (let i = 0; i < POOL_SIZE; i++) {
-            this.pool.push(new CityChunk(scene, assetManager));
+            this.pool.push(new CityChunk(scene, assetManager, textureGen));
         }
     }
 
@@ -82,6 +83,6 @@ export class ChunkManager {
 
     _getChunk() {
         if (this.pool.length > 0) return this.pool.pop();
-        return new CityChunk(this.scene, this.assetManager);
+        return new CityChunk(this.scene, this.assetManager, this.textureGen);
     }
 }
