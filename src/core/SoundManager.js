@@ -220,6 +220,59 @@ export class SoundManager {
         this._sweep(400, 1200, 0.3, 'sine', 0.2);
     }
 
+    playCoinPickup() {
+        if (!this.audioCtx) return;
+        const ctx = this.audioCtx;
+        const t = ctx.currentTime;
+        // 两个快速上升音
+        [1400, 1800].forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            const start = t + i * 0.03;
+            g.gain.setValueAtTime(0.25, start);
+            g.gain.exponentialRampToValueAtTime(0.001, start + 0.06);
+            osc.connect(g);
+            g.connect(this.sfxGain);
+            osc.start(start);
+            osc.stop(start + 0.06);
+        });
+    }
+
+    playPowerupPickup() {
+        if (!this.audioCtx) return;
+        const ctx = this.audioCtx;
+        const t = ctx.currentTime;
+        const notes = [660, 880, 1320]; // E5, A5, E6
+        notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            const start = t + i * 0.06;
+            g.gain.setValueAtTime(0, start);
+            g.gain.linearRampToValueAtTime(0.25, start + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.001, start + 0.12);
+            osc.connect(g);
+            g.connect(this.sfxGain);
+            osc.start(start);
+            osc.stop(start + 0.12);
+        });
+    }
+
+    playShieldActivate() {
+        if (!this.audioCtx) return;
+        this._sweep(200, 1000, 0.3, 'sine', 0.2);
+        this._noise(0.15, 2000, 0.1);
+    }
+
+    playShieldBreak() {
+        if (!this.audioCtx) return;
+        this._noise(0.2, 4000, 0.3);
+        this._tone(2000, 0.05, 'square', 0.15);
+    }
+
     /* ─── 脚步声 ─── */
 
     updateFootsteps(speed) {

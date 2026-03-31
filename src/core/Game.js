@@ -1,21 +1,23 @@
 import * as THREE from 'three';
-import { createRenderer, createCamera, createScene, setupResize } from '../rendering/SceneSetup.js';
-import { LightingRig } from '../rendering/LightingRig.js';
-import { SkyController } from '../rendering/SkyController.js';
-import { CameraController } from '../rendering/CameraController.js';
-import { InputManager } from './InputManager.js';
-import { AssetManager } from './AssetManager.js';
-import { TextureGenerator } from '../rendering/TextureGenerator.js';
-import { PlayerController } from '../player/PlayerController.js';
-import { CollisionDetector } from '../player/CollisionDetector.js';
-import { ChunkManager } from '../world/ChunkManager.js';
-import { ScoreManager } from '../gameplay/ScoreManager.js';
-import { DifficultyManager } from '../gameplay/DifficultyManager.js';
-import { ParticleSystem } from '../effects/ParticleSystem.js';
-import { SpeedLines } from '../effects/SpeedLines.js';
-import { PostProcessing } from '../rendering/PostProcessing.js';
-import { SoundManager } from './SoundManager.js';
-import { UIManager } from './UIManager.js';
+import { createRenderer, createCamera, createScene, setupResize } from '../rendering/SceneSetup.js?v=20260331r1';
+import { LightingRig } from '../rendering/LightingRig.js?v=20260331r1';
+import { SkyController } from '../rendering/SkyController.js?v=20260331r1';
+import { CameraController } from '../rendering/CameraController.js?v=20260331r1';
+import { InputManager } from './InputManager.js?v=20260331r1';
+import { AssetManager } from './AssetManager.js?v=20260331r1';
+import { TextureGenerator } from '../rendering/TextureGenerator.js?v=20260331r1';
+import { PlayerController } from '../player/PlayerController.js?v=20260331r1';
+import { CollisionDetector } from '../player/CollisionDetector.js?v=20260331r1';
+import { ChunkManager } from '../world/ChunkManager.js?v=20260331r1';
+import { ScoreManager } from '../gameplay/ScoreManager.js?v=20260331r1';
+import { DifficultyManager } from '../gameplay/DifficultyManager.js?v=20260331r1';
+import { ParticleSystem } from '../effects/ParticleSystem.js?v=20260331r1';
+import { SpeedLines } from '../effects/SpeedLines.js?v=20260331r1';
+import { PostProcessing } from '../rendering/PostProcessing.js?v=20260331r1';
+import { SoundManager } from './SoundManager.js?v=20260331r1';
+import { UIManager } from './UIManager.js?v=20260331r1';
+import { CoinSystem } from '../gameplay/CoinSystem.js?v=20260331r1';
+import { PowerUpSystem } from '../gameplay/PowerUpSystem.js?v=20260331r1';
 
 const STATE = { MENU: 'menu', COUNTDOWN: 'countdown', PLAYING: 'playing', GAME_OVER: 'gameover' };
 
@@ -43,6 +45,8 @@ export class Game {
         this.difficulty = new DifficultyManager();
         this.sound = new SoundManager();
         this.ui = new UIManager();
+        this.coinSystem = new CoinSystem();
+        this.powerUpSystem = new PowerUpSystem(this.scene);
 
         // 地面
         const groundGeo = new THREE.PlaneGeometry(200, 1000);
@@ -103,6 +107,8 @@ export class Game {
 
         // 创建世界分块管理器
         this.chunks = new ChunkManager(this.scene, this.assetManager, this.textureGen);
+        this.chunks.coinSystem = this.coinSystem;
+        this.chunks.powerUpSystem = this.powerUpSystem;
         this.chunks.reset();
         this.chunks.update(0, 0);
 
@@ -133,6 +139,8 @@ export class Game {
         this.player.reset();
         this.score.reset();
         this.difficulty.reset();
+        this.coinSystem.reset();
+        this.powerUpSystem.reset();
         this.chunks.reset();
         this.chunks.update(0, 0);
         this.clock.getDelta();
@@ -160,6 +168,7 @@ export class Game {
             score: this.score.score,
             highScore: this.score.highScore,
             distance: this.score.distance,
+            coins: this.score.coins,
             time: this.difficulty.elapsed,
             maxSpeed: this.difficulty.maxReachedSpeed,
             isNewRecord,
@@ -219,11 +228,11 @@ export class Game {
         // 捕获前一帧状态
         const wasGrounded = this._prevGrounded;
 
-        // 玩家输入 & 更新
         // 音效触发（在 handleInput 之前检测 action）
         if (actions.left || actions.right) this.sound.playLaneSwitch();
         if (actions.slide && this.player.isGrounded) this.sound.playSlide();
 
+        // 玩家输入 & 更新
         this.player.handleInput(actions);
         this.player.update(dt, speed);
 
@@ -256,17 +265,83 @@ export class Game {
         // 分块管理
         this.chunks.update(this.worldOffset, this.difficulty.getDifficulty());
 
-        // 碰撞检测
+        // 金币动画（自旋 + 浮动）
+        this.coinSystem.update(dt, this.chunks.chunks);
+
+        // 道具动画 + 效果 (护盾视觉、磁铁吸引、计时)
+        this.powerUpSystem.update(dt, this.player.position, this.chunks.chunks, this.chunks.chunks);
+
+        // ─── 碰撞检测 ───
+
+        // 障碍物碰撞 (带护盾拦截)
         const obstacles = this.chunks.getActiveObstacles();
         const hit = this.collision.check(this.player.position, this.player.isSliding, obstacles);
         if (hit) {
-            this.player.die();
-            if (this.particles) this.particles.triggerExplosion(this.player.position);
-            this.gameOver();
-            return;
+            if (this.powerUpSystem.isShieldActive()) {
+                // 护盾吸收碰撞
+                this.powerUpSystem.breakShield();
+                this.sound.playShieldBreak();
+                this.ui.hidePowerUp();
+                this.cameraCtrl.shake(0.3);
+                hit.active = false; // 让玩家穿过
+            } else {
+                this.player.die();
+                if (this.particles) this.particles.triggerExplosion(this.player.position);
+                this.gameOver();
+                return;
+            }
         }
 
-        // 计分
+        // 金币收集
+        const coins = this.chunks.getActiveCoins();
+        const collectedCoins = this.collision.checkPickups(this.player.position, this.player.isSliding, coins);
+        if (collectedCoins.length > 0) {
+            for (const coin of collectedCoins) {
+                coin.collected = true;
+                coin.mesh.visible = false;
+                if (this.particles) this.particles.triggerCoinBurst(coin.mesh.position);
+            }
+            this.score.addCoins(collectedCoins.length);
+            this.sound.playCoinPickup();
+            this.ui.updateCoinCount(this.score.coins);
+            this.ui.flashCoinPopup(collectedCoins.length * 10 * this.score.multiplier);
+        }
+
+        // 道具收集
+        const powerUps = this.chunks.getActivePowerUps();
+        const collectedPU = this.collision.checkPickups(this.player.position, this.player.isSliding, powerUps);
+        if (collectedPU.length > 0) {
+            const pu = collectedPU[0];
+            pu.collected = true;
+            pu.mesh.visible = false;
+            this.powerUpSystem.activate(pu.type);
+            this.sound.playPowerupPickup();
+            this.ui.showPowerUp(
+                pu.type,
+                this.powerUpSystem.getDuration(pu.type),
+                this.powerUpSystem.getLabel(pu.type)
+            );
+
+            if (pu.type === 'scoreMultiplier') {
+                this.score.setMultiplier(2);
+                this.ui.showMultiplier(true);
+            }
+            if (pu.type === 'shield') {
+                this.sound.playShieldActivate();
+            }
+        }
+
+        // 道具过期检查
+        if (this.powerUpSystem.justExpired) {
+            const expired = this.powerUpSystem.justExpired;
+            this.ui.hidePowerUp();
+            if (expired === 'scoreMultiplier') {
+                this.score.setMultiplier(1);
+                this.ui.showMultiplier(false);
+            }
+        }
+
+        // 计分 & UI
         this.score.update(dt, speed);
         this.ui.updateScore(this.score.score);
         this.ui.updateDistance(this.score.distance);

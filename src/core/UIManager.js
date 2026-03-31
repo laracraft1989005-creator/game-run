@@ -21,6 +21,13 @@ export class UIManager {
         this.elStatSpeed = document.getElementById('stat-speed');
         this.elMilestonePopup = document.getElementById('milestone-popup');
         this.elMuteBtn = document.getElementById('btn-mute');
+        this.elCoinCount = document.getElementById('coin-count');
+        this.elStatCoins = document.getElementById('stat-coins');
+        this.elMultiplierBadge = document.getElementById('multiplier-badge');
+        this.elPowerUpIndicator = document.getElementById('powerup-indicator');
+        this.elPowerUpLabel = document.querySelector('.powerup-label');
+        this.elPowerUpFill = document.querySelector('.powerup-timer-fill');
+        this.elCoinPopup = document.getElementById('coin-popup');
 
         // 分数动画状态
         this._displayScore = 0;
@@ -28,6 +35,13 @@ export class UIManager {
 
         // 里程碑动画
         this._milestoneTimer = 0;
+
+        // 金币弹窗计时
+        this._coinPopupTimer = 0;
+
+        // 道具计时条
+        this._powerUpDuration = 0;
+        this._powerUpRemaining = 0;
     }
 
     /* ─── 界面切换 ─── */
@@ -82,16 +96,21 @@ export class UIManager {
         this._show(this.elHud);
         this._displayScore = 0;
         this._actualScore = 0;
+        this.updateCoinCount(0);
+        this.hidePowerUp();
+        this.showMultiplier(false);
     }
 
     showGameOver(stats) {
         this._hide(this.elHud);
         this._show(this.elGameOver);
+        this.hidePowerUp();
 
         // 填充结算数据
         this.elFinalScore.textContent = stats.score;
         this.elHighScore.textContent = stats.highScore;
         if (this.elStatDistance) this.elStatDistance.textContent = Math.floor(stats.distance) + 'm';
+        if (this.elStatCoins) this.elStatCoins.textContent = stats.coins || 0;
         if (this.elStatTime) this.elStatTime.textContent = stats.time.toFixed(1) + 's';
         if (this.elStatSpeed) this.elStatSpeed.textContent = stats.maxSpeed.toFixed(1);
 
@@ -140,6 +159,64 @@ export class UIManager {
             if (this._milestoneTimer <= 0 && this.elMilestonePopup) {
                 this.elMilestonePopup.classList.add('hidden');
             }
+        }
+
+        // 金币弹窗消失
+        if (this._coinPopupTimer > 0) {
+            this._coinPopupTimer -= dt;
+            if (this._coinPopupTimer <= 0 && this.elCoinPopup) {
+                this.elCoinPopup.classList.add('hidden');
+            }
+        }
+
+        // 道具计时条
+        if (this._powerUpRemaining > 0) {
+            this._powerUpRemaining -= dt;
+            if (this.elPowerUpFill && this._powerUpDuration > 0) {
+                const ratio = Math.max(0, this._powerUpRemaining / this._powerUpDuration);
+                this.elPowerUpFill.style.transform = `scaleX(${ratio})`;
+            }
+        }
+    }
+
+    /* ─── 金币 & 道具 HUD ─── */
+
+    updateCoinCount(count) {
+        if (this.elCoinCount) this.elCoinCount.textContent = count;
+    }
+
+    flashCoinPopup(amount) {
+        if (!this.elCoinPopup) return;
+        this.elCoinPopup.textContent = '+' + amount;
+        this.elCoinPopup.classList.remove('hidden', 'animate');
+        void this.elCoinPopup.offsetWidth;
+        this.elCoinPopup.classList.add('animate');
+        this._coinPopupTimer = 0.6;
+    }
+
+    showPowerUp(type, duration, label) {
+        if (!this.elPowerUpIndicator) return;
+        if (this.elPowerUpLabel) this.elPowerUpLabel.textContent = label || type;
+        this._powerUpDuration = duration;
+        this._powerUpRemaining = duration;
+        if (this.elPowerUpFill) {
+            this.elPowerUpFill.style.transform = 'scaleX(1)';
+            this.elPowerUpFill.style.transition = 'none';
+        }
+        this._show(this.elPowerUpIndicator);
+    }
+
+    hidePowerUp() {
+        this._hide(this.elPowerUpIndicator);
+        this._powerUpRemaining = 0;
+    }
+
+    showMultiplier(active) {
+        if (this.elMultiplierBadge) {
+            this.elMultiplierBadge.classList.toggle('hidden', !active);
+        }
+        if (this.elScore) {
+            this.elScore.classList.toggle('score-multiplied', active);
         }
     }
 

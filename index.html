@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>城市跑酷 City Runner</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=20260331r1">
     <script type="importmap">
     {
         "imports": {
@@ -44,11 +44,20 @@
         <!-- HUD -->
         <div id="hud" class="overlay hidden">
             <div class="hud-top">
-                <div class="hud-score"><span id="score">0</span></div>
+                <div class="hud-score">
+                    <span id="score">0</span>
+                    <span id="multiplier-badge" class="multiplier-badge hidden">x2</span>
+                </div>
                 <div class="hud-distance"><span id="distance">0m</span></div>
+                <div class="hud-coins"><span class="coin-icon">●</span> <span id="coin-count">0</span></div>
+            </div>
+            <div id="powerup-indicator" class="powerup-indicator hidden">
+                <span class="powerup-label"></span>
+                <div class="powerup-timer-bar"><div class="powerup-timer-fill"></div></div>
             </div>
             <button id="btn-mute" class="mute-btn">🔊</button>
             <div id="milestone-popup" class="milestone-popup hidden"></div>
+            <div id="coin-popup" class="coin-popup hidden"></div>
         </div>
 
         <!-- 结算 -->
@@ -63,6 +72,10 @@
                     <div class="stat-item">
                         <span class="stat-label">距离</span>
                         <span id="stat-distance" class="stat-value">0m</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">金币</span>
+                        <span id="stat-coins" class="stat-value">0</span>
                     </div>
                     <div class="stat-item">
                         <span class="stat-label">时间</span>
@@ -90,6 +103,6 @@
         });
     </script>
     <pre id="debug-log" style="position:fixed;bottom:0;left:0;color:lime;background:rgba(0,0,0,0.8);font-size:12px;padding:8px;max-height:200px;overflow:auto;z-index:9999;pointer-events:none;"></pre>
-    <script type="module" src="main.js"></script>
+    <script type="module" src="main.js?v=20260331r1"></script>
 </body>
 </html>

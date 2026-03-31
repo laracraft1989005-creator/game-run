@@ -1,9 +1,9 @@
 import * as THREE from 'three';
-import { CHUNK_LENGTH, ROAD_WIDTH, LANES } from './LaneConfig.js';
+import { CHUNK_LENGTH, ROAD_WIDTH, LANES } from './LaneConfig.js?v=20260331r1';
+import { selectPattern } from '../gameplay/ObstaclePatterns.js?v=20260331r1';
 
 // 程序化兜底用的颜色
 const BUILDING_COLORS = [0x6688AA, 0x7799BB, 0x5577AA, 0x8899BB, 0x6677CC, 0x9988AA];
-const OBSTACLE_TYPES = ['low', 'full'];
 
 // 碰撞盒尺寸 (游戏性关键，不随视觉变化)
 const COLLISION_DIMS = {
@@ -17,6 +17,8 @@ export class CityChunk {
         this.textureGen = textureGen;
         this.group = new THREE.Group();
         this.obstacles = [];
+        this.coins = [];
+        this.powerUp = null;
         this.buildings = [];
         this.props = [];
         this.roadMeshes = [];
@@ -279,7 +281,7 @@ export class CityChunk {
 
     // ─── 障碍物系统 ─────────────────────────────────
 
-    generate(zPos, difficulty) {
+    generate(zPos, difficulty, coinSystem, powerUpSystem) {
         this.group.position.z = zPos;
         this.active = true;
 
@@ -296,17 +298,46 @@ export class CityChunk {
         }
         this.obstacles = [];
 
-        // 生成障碍
+        // 清除旧金币 & 道具
+        this._clearPickups(coinSystem, powerUpSystem);
+
+        // 生成障碍（使用 pattern 系统）
         const count = 2 + Math.floor(difficulty * 3);
         const spacing = CHUNK_LENGTH / (count + 1);
 
         for (let i = 0; i < count; i++) {
-            const lane = Math.floor(Math.random() * 3);
-            const type = OBSTACLE_TYPES[Math.floor(Math.random() * OBSTACLE_TYPES.length)];
-            const z = -CHUNK_LENGTH / 2 + spacing * (i + 1);
-            const obs = this._createObstacle(type, lane, z);
-            this.obstacles.push(obs);
+            const slotZ = -CHUNK_LENGTH / 2 + spacing * (i + 1);
+            const patternFn = selectPattern(difficulty);
+            const entries = patternFn();
+
+            for (const entry of entries) {
+                const z = Math.max(-CHUNK_LENGTH / 2 + 1,
+                    Math.min(CHUNK_LENGTH / 2 - 1, slotZ + (entry.zOffset || 0)));
+                const obs = this._createObstacle(entry.type, entry.lane, z);
+                this.obstacles.push(obs);
+            }
         }
+
+        // 生成金币
+        if (coinSystem) {
+            this.coins = coinSystem.createCoinsForChunk(this.group, difficulty);
+        }
+
+        // 生成道具
+        if (powerUpSystem) {
+            this.powerUp = powerUpSystem.createForChunk(this.group, difficulty);
+        }
+    }
+
+    _clearPickups(coinSystem, powerUpSystem) {
+        if (coinSystem && this.coins.length > 0) {
+            coinSystem.clearCoins(this.group, this.coins);
+        }
+        this.coins = [];
+        if (powerUpSystem && this.powerUp) {
+            powerUpSystem.clearPowerUp(this.group, this.powerUp);
+        }
+        this.powerUp = null;
     }
 
     _createObstacle(type, lane, z) {
@@ -373,7 +404,8 @@ export class CityChunk {
         }
     }
 
-    recycle() {
+    recycle(coinSystem, powerUpSystem) {
         this.active = false;
+        this._clearPickups(coinSystem, powerUpSystem);
     }
 }

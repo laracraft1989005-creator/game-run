@@ -24,6 +24,24 @@
 
 ## 版本历史
 
+### v0.7 — 玩法深度：金币 + 道具 + 障碍物花样
+- **金币系统**
+  - 程序化金色旋转金币，三种排列模式（直线、弧线、网格）
+  - 收集触发金色粒子爆发 + ding 音效
+  - 每个金币 +10 分，受倍率影响
+- **道具系统**（3 种稀有道具）
+  - 护盾（蓝）：抵挡一次碰撞
+  - 磁铁（紫）：自动吸附 5 单位内金币
+  - 分数 x2（绿）：所有得分翻倍
+  - 道具拾取有专属音效，HUD 显示倒计时条
+- **障碍物花样**
+  - 5 种组合模式按难度递进解锁：random / wall / gap / zigzag / corridor
+  - wall: 双车道封锁 | gap: 全车道矮障碍 | zigzag: 交替变道 | corridor: 滑铲通道
+- **HUD 扩展**
+  - 金币计数显示、道具状态指示器、分数倍率徽章
+  - 金币拾取 "+10" 上浮动画
+  - 结算页增加金币统计
+
 ### v0.6 — 音效系统 + UI 精致化
 - **Web Audio API 程序化音效**：所有声音由振荡器/噪声实时合成，无需音频文件
   - 背景音乐：五声音阶琶音 + bass + hi-hat，节拍随游戏速度变化
@@ -84,7 +102,7 @@ city-runner/
 │   └── obstacles/          障碍物模型 GLB
 └── src/
     ├── core/               Game, InputManager, AssetManager, SoundManager, UIManager
-    ├── gameplay/           ScoreManager, DifficultyManager
+    ├── gameplay/           ScoreManager, DifficultyManager, CoinSystem, PowerUpSystem, ObstaclePatterns
     ├── player/             PlayerController, CharacterModel, AnimationController
     ├── rendering/          SceneSetup, Camera, Lighting, Sky
     └── world/              ChunkManager, CityChunk, LaneConfig

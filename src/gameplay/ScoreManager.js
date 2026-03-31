@@ -4,14 +4,25 @@ export class ScoreManager {
     constructor() {
         this.distance = 0;
         this.score = 0;
+        this.coins = 0;
+        this.multiplier = 1;
+        this._coinScore = 0;
         this.highScore = parseInt(localStorage.getItem('cityRunnerHigh') || '0');
         this._lastMilestoneIdx = -1;
     }
 
     update(dt, speed) {
         this.distance += speed * dt;
-        this.score = Math.floor(this.distance);
+        this.score = Math.floor(this.distance * this.multiplier) + this._coinScore;
     }
+
+    addCoins(count) {
+        this.coins += count;
+        this._coinScore += count * 10 * this.multiplier;
+        this.score = Math.floor(this.distance * this.multiplier) + this._coinScore;
+    }
+
+    setMultiplier(m) { this.multiplier = m; }
 
     /** 返回刚跨过的里程碑值，无则返回 0 */
     checkMilestone() {
@@ -37,6 +48,9 @@ export class ScoreManager {
     reset() {
         this.distance = 0;
         this.score = 0;
+        this.coins = 0;
+        this.multiplier = 1;
+        this._coinScore = 0;
         this._lastMilestoneIdx = -1;
     }
 }

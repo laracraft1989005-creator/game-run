@@ -146,6 +146,96 @@ body {
     font-weight: 500;
 }
 
+.hud-coins {
+    font-size: 1.1rem;
+    color: #FFD700;
+    font-weight: 700;
+    margin-top: 4px;
+}
+
+.coin-icon {
+    font-size: 0.9rem;
+    text-shadow: 0 0 6px rgba(255,215,0,0.5);
+}
+
+/* 分数倍率徽章 */
+.multiplier-badge {
+    display: inline-block;
+    font-size: 1rem;
+    color: #44FF88;
+    font-weight: 900;
+    margin-left: 8px;
+    vertical-align: super;
+    animation: multiplierPulse 1s ease-in-out infinite;
+}
+
+.multiplier-badge.hidden { display: none; }
+
+@keyframes multiplierPulse {
+    0%, 100% { opacity: 0.7; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.15); }
+}
+
+/* 分数倍率时颜色 */
+.score-multiplied { color: #44FF88 !important; }
+
+/* 道具状态指示器 */
+.powerup-indicator {
+    position: absolute;
+    top: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    pointer-events: none !important;
+}
+
+.powerup-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #fff;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.powerup-timer-bar {
+    width: 80px;
+    height: 4px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.powerup-timer-fill {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #4488FF, #6644FF);
+    border-radius: 2px;
+    transform-origin: left;
+}
+
+/* 金币拾取弹窗 */
+.coin-popup {
+    position: absolute;
+    top: 22%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: #FFD700;
+    text-shadow: 0 1px 8px rgba(255,215,0,0.5);
+    pointer-events: none !important;
+    opacity: 0;
+}
+
+.coin-popup.animate {
+    animation: coinFloat 0.6s ease-out forwards;
+}
+
+@keyframes coinFloat {
+    0% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-40px) scale(0.8); }
+}
+
 /* 分数闪光动画 */
 .score-flash {
     animation: milestoneFlash 0.4s ease-out;
@@ -279,14 +369,14 @@ body {
 
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 12px;
     margin: 1.5rem auto;
     padding: 1rem 1.2rem;
     background: rgba(255,255,255,0.06);
     border-radius: 12px;
     border: 1px solid rgba(255,255,255,0.08);
-    max-width: 360px;
+    max-width: 400px;
 }
 
 .stat-item { text-align: center; }
@@ -362,7 +452,7 @@ body {
     .milestone-popup { font-size: 1.6rem; }
     #gameover h2 { font-size: 2rem; }
     .score-display { font-size: 1.3rem; }
-    .stats-grid { gap: 8px; padding: 0.8rem; max-width: 280px; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 0.8rem; max-width: 280px; }
     .stat-value { font-size: 1.1rem; }
     .stat-label { font-size: 0.65rem; }
     .mute-btn { width: 40px; height: 40px; font-size: 1rem; }

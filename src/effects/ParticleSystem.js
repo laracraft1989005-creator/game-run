@@ -3,6 +3,7 @@ import * as THREE from 'three';
 const TRAIL_MAX = 80;
 const DUST_MAX = 40;
 const EXPLOSION_MAX = 120;
+const COIN_BURST_MAX = 30;
 
 // 共享粒子点纹理 (32×32 径向渐变)
 function createDotTexture() {
@@ -88,12 +89,18 @@ export class ParticleSystem {
         this._explosion = createParticlePoints(EXPLOSION_MAX, 0xFF6622, scene);
         this._expVel = new Array(EXPLOSION_MAX).fill(null).map(() => ({ x: 0, y: 0, z: 0 }));
         this._expActive = false;
+
+        // 金币拾取
+        this._coinBurst = createParticlePoints(COIN_BURST_MAX, 0xFFD700, scene);
+        this._coinVel = new Array(COIN_BURST_MAX).fill(null).map(() => ({ x: 0, y: 0, z: 0 }));
+        this._coinActive = false;
     }
 
     update(dt, playerPos, state, speed) {
         this._updateTrail(dt, playerPos, state, speed);
         this._updateDust(dt);
         this._updateExplosion(dt);
+        this._updateCoinBurst(dt);
     }
 
     triggerJumpDust(pos) {
@@ -102,6 +109,28 @@ export class ParticleSystem {
 
     triggerLandDust(pos) {
         this._emitDust(pos, 14, 5, 0.8);
+    }
+
+    triggerCoinBurst(pos) {
+        const { positions, alphas, sizes } = this._coinBurst;
+        const count = 12;
+        for (let i = 0; i < count; i++) {
+            const i3 = i * 3;
+            positions[i3] = pos.x;
+            positions[i3 + 1] = pos.y + 0.8;
+            positions[i3 + 2] = pos.z;
+            const angle = Math.random() * Math.PI * 2;
+            const mag = 2 + Math.random() * 3;
+            this._coinVel[i].x = Math.cos(angle) * mag;
+            this._coinVel[i].y = 2 + Math.random() * 4;
+            this._coinVel[i].z = Math.sin(angle) * mag;
+            alphas[i] = 1.0;
+            sizes[i] = 0.15 + Math.random() * 0.15;
+        }
+        this._coinBurst.geo.attributes.position.needsUpdate = true;
+        this._coinBurst.geo.attributes.alpha.needsUpdate = true;
+        this._coinBurst.geo.attributes.size.needsUpdate = true;
+        this._coinActive = true;
     }
 
     triggerExplosion(pos) {
@@ -138,6 +167,9 @@ export class ParticleSystem {
         this._explosion.alphas.fill(0);
         this._explosion.geo.attributes.alpha.needsUpdate = true;
         this._expActive = false;
+        this._coinBurst.alphas.fill(0);
+        this._coinBurst.geo.attributes.alpha.needsUpdate = true;
+        this._coinActive = false;
     }
 
     // ─── 拖尾 ───────────────────────────────────
@@ -242,5 +274,28 @@ export class ParticleSystem {
         geo.attributes.alpha.needsUpdate = true;
         geo.attributes.size.needsUpdate = true;
         if (!anyAlive) this._expActive = false;
+    }
+
+    // ─── 金币拾取 ──────────────────────────────────
+
+    _updateCoinBurst(dt) {
+        if (!this._coinActive) return;
+        const { positions, alphas, sizes, geo } = this._coinBurst;
+        let anyAlive = false;
+        for (let i = 0; i < COIN_BURST_MAX; i++) {
+            if (alphas[i] <= 0) continue;
+            anyAlive = true;
+            const v = this._coinVel[i];
+            const i3 = i * 3;
+            positions[i3] += v.x * dt;
+            positions[i3 + 1] += v.y * dt;
+            positions[i3 + 2] += v.z * dt;
+            v.y -= 6 * dt; // 重力
+            alphas[i] -= 2.0 * dt;
+            if (alphas[i] < 0) alphas[i] = 0;
+        }
+        geo.attributes.position.needsUpdate = true;
+        geo.attributes.alpha.needsUpdate = true;
+        if (!anyAlive) this._coinActive = false;
     }
 }
