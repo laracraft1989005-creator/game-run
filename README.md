@@ -24,6 +24,23 @@
 
 ## 版本历史
 
+### v0.6 — 音效系统 + UI 精致化
+- **Web Audio API 程序化音效**：所有声音由振荡器/噪声实时合成，无需音频文件
+  - 背景音乐：五声音阶琶音 + bass + hi-hat，节拍随游戏速度变化
+  - 动作音效：跳跃、落地、滑铲、变道、碰撞爆炸
+  - 事件音效：里程碑 chime、加速提示、UI 点击
+  - 脚步声随跑步速度同步
+  - 静音控制 + 状态持久化
+  - 移动端 AudioContext 自动解锁
+- **UI 精致化**
+  - 界面过渡：所有画面切换支持平滑淡入淡出动画
+  - 开局倒计时：3-2-1-GO! 脉冲动画
+  - HUD 重设计：分数居中大字显示 + 滚动动画
+  - 里程碑弹窗：NICE! / COOL! / GREAT! / AMAZING! / INCREDIBLE!
+  - 结算页扩展：距离、时间、最高速度统计 + NEW RECORD 动画
+  - 菜单标题浮动动画 + Loading 发光脉冲
+  - 移动端响应式适配
+
 ### v0.3 — Kenney 城市资源集成
 - 资源管理器 (AssetManager)：预加载 Kenney CC0 城市模型
 - 道路系统：Kenney 道路瓦片铺设，支持斑马线变体
@@ -66,7 +83,7 @@ city-runner/
 │   │   └── props/          街道装饰 GLB
 │   └── obstacles/          障碍物模型 GLB
 └── src/
-    ├── core/               Game, InputManager, AssetManager
+    ├── core/               Game, InputManager, AssetManager, SoundManager, UIManager
     ├── gameplay/           ScoreManager, DifficultyManager
     ├── player/             PlayerController, CharacterModel, AnimationController
     ├── rendering/          SceneSetup, Camera, Lighting, Sky

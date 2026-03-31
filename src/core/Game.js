@@ -14,8 +14,10 @@ import { DifficultyManager } from '../gameplay/DifficultyManager.js';
 import { ParticleSystem } from '../effects/ParticleSystem.js';
 import { SpeedLines } from '../effects/SpeedLines.js';
 import { PostProcessing } from '../rendering/PostProcessing.js';
+import { SoundManager } from './SoundManager.js';
+import { UIManager } from './UIManager.js';
 
-const STATE = { MENU: 'menu', PLAYING: 'playing', GAME_OVER: 'gameover' };
+const STATE = { MENU: 'menu', COUNTDOWN: 'countdown', PLAYING: 'playing', GAME_OVER: 'gameover' };
 
 export class Game {
     constructor(container) {
@@ -39,6 +41,8 @@ export class Game {
         this.collision = new CollisionDetector();
         this.score = new ScoreManager();
         this.difficulty = new DifficultyManager();
+        this.sound = new SoundManager();
+        this.ui = new UIManager();
 
         // 地面
         const groundGeo = new THREE.PlaneGeometry(200, 1000);
@@ -61,31 +65,33 @@ export class Game {
         this._prevGrounded = true;
         this._prevAlive = true;
 
-        // UI 引用
-        this.uiMenu = document.getElementById('menu');
-        this.uiHud = document.getElementById('hud');
-        this.uiGameOver = document.getElementById('gameover');
-        this.uiLoading = document.getElementById('loading');
-        this.uiScore = document.getElementById('score');
-        this.uiDistance = document.getElementById('distance');
-        this.uiFinalScore = document.getElementById('final-score');
-        this.uiHighScore = document.getElementById('high-score');
-
         // 按钮事件
-        document.getElementById('btn-start')?.addEventListener('click', () => this.startGame());
-        document.getElementById('btn-restart')?.addEventListener('click', () => this.startGame());
+        document.getElementById('btn-start')?.addEventListener('click', () => {
+            this.sound.unlock();
+            this.sound.playUIClick();
+            this._startCountdown();
+        });
+        document.getElementById('btn-restart')?.addEventListener('click', () => {
+            this.sound.unlock();
+            this.sound.playUIClick();
+            this._startCountdown();
+        });
 
-        // 初始时隐藏菜单和 HUD，只显示 loading
-        this.uiMenu.classList.add('hidden');
-        this.uiHud.classList.add('hidden');
-        this.uiGameOver.classList.add('hidden');
+        // 静音按钮
+        this.ui.setupMuteButton(this.sound.muted, () => {
+            this.sound.unlock();
+            return this.sound.toggleMute();
+        });
+
+        // 初始隐藏
+        this.ui.showLoading();
     }
 
     async init() {
         // 加载 Kenney 资源
         this.assetManager = new AssetManager();
-        const progressFill = this.uiLoading.querySelector('.progress-fill');
-        const loadingText = this.uiLoading.querySelector('.loading-text');
+        const progressFill = document.querySelector('#loading .progress-fill');
+        const loadingText = document.querySelector('#loading .loading-text');
 
         this.assetManager.onProgress = (loaded, total) => {
             const pct = Math.round(loaded / total * 100);
@@ -94,9 +100,6 @@ export class Game {
         };
 
         await this.assetManager.loadAll();
-
-        // 隐藏 loading，显示菜单
-        this.uiLoading.classList.add('hidden');
 
         // 创建世界分块管理器
         this.chunks = new ChunkManager(this.scene, this.assetManager, this.textureGen);
@@ -118,11 +121,14 @@ export class Game {
             this.postProcessing = null;
         }
 
-        this._showUI(STATE.MENU);
+        this.ui.showMenu();
     }
 
-    startGame() {
-        this.state = STATE.PLAYING;
+    _startCountdown() {
+        if (this.state === STATE.COUNTDOWN) return;
+        this.state = STATE.COUNTDOWN;
+
+        // 预先重置游戏状态
         this.worldOffset = 0;
         this.player.reset();
         this.score.reset();
@@ -134,22 +140,30 @@ export class Game {
         this._prevAlive = true;
         if (this.particles) this.particles.reset();
         if (this.speedLines) this.speedLines.reset();
-        this._showUI(STATE.PLAYING);
+
+        this.ui.showCountdown(() => {
+            this.state = STATE.PLAYING;
+            this.ui.showPlaying();
+            this.sound.startMusic();
+        });
     }
 
     gameOver() {
         this.state = STATE.GAME_OVER;
-        this.score.saveHighScore();
+        const isNewRecord = this.score.saveHighScore();
         this.cameraCtrl.shake(1.0);
-        this.uiFinalScore.textContent = this.score.score;
-        this.uiHighScore.textContent = this.score.highScore;
-        this._showUI(STATE.GAME_OVER);
-    }
+        this.sound.playCollision();
+        this.sound.stopMusic();
+        this.sound.resetFootsteps();
 
-    _showUI(state) {
-        this.uiMenu.classList.toggle('hidden', state !== STATE.MENU);
-        this.uiHud.classList.toggle('hidden', state !== STATE.PLAYING);
-        this.uiGameOver.classList.toggle('hidden', state !== STATE.GAME_OVER);
+        this.ui.showGameOver({
+            score: this.score.score,
+            highScore: this.score.highScore,
+            distance: this.score.distance,
+            time: this.difficulty.elapsed,
+            maxSpeed: this.difficulty.maxReachedSpeed,
+            isNewRecord,
+        });
     }
 
     update() {
@@ -158,11 +172,13 @@ export class Game {
         // 输入
         const actions = this.input.consume();
         if (this.state === STATE.MENU && (actions.jump || actions.slide)) {
-            this.startGame();
+            this.sound.unlock();
+            this._startCountdown();
             return;
         }
         if (this.state === STATE.GAME_OVER && actions.jump) {
-            this.startGame();
+            this.sound.unlock();
+            this._startCountdown();
             return;
         }
 
@@ -191,21 +207,40 @@ export class Game {
         this.difficulty.update(dt);
         const speed = this.difficulty.speed;
 
+        // 音乐节拍跟随速度
+        this.sound.setMusicTempo(speed);
+
+        // 加速提示
+        if (this.difficulty.speedChanged) {
+            this.sound.playSpeedUp();
+            this.ui.flashSpeedUp();
+        }
+
         // 捕获前一帧状态
         const wasGrounded = this._prevGrounded;
-        const wasAlive = this._prevAlive;
 
         // 玩家输入 & 更新
+        // 音效触发（在 handleInput 之前检测 action）
+        if (actions.left || actions.right) this.sound.playLaneSwitch();
+        if (actions.slide && this.player.isGrounded) this.sound.playSlide();
+
         this.player.handleInput(actions);
         this.player.update(dt, speed);
 
         // 粒子触发：跳跃起飞
         if (wasGrounded && !this.player.isGrounded && this.player.velocityY > 0) {
             this.particles.triggerJumpDust(this.player.position);
+            this.sound.playJump();
         }
         // 粒子触发：落地
         if (!wasGrounded && this.player.isGrounded) {
             this.particles.triggerLandDust(this.player.position);
+            this.sound.playLand();
+        }
+
+        // 脚步声
+        if (this.player.isGrounded && this.player.alive && !this.player.isSliding) {
+            this.sound.updateFootsteps(speed);
         }
 
         this._prevGrounded = this.player.isGrounded;
@@ -233,8 +268,16 @@ export class Game {
 
         // 计分
         this.score.update(dt, speed);
-        this.uiScore.textContent = this.score.score;
-        this.uiDistance.textContent = Math.floor(this.score.distance) + 'm';
+        this.ui.updateScore(this.score.score);
+        this.ui.updateDistance(this.score.distance);
+        this.ui.update(dt);
+
+        // 里程碑检测
+        const milestone = this.score.checkMilestone();
+        if (milestone) {
+            this.sound.playMilestone();
+            this.ui.flashMilestone(milestone);
+        }
 
         // 灯光跟随
         this.lighting.update(0);

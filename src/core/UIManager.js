@@ -1,0 +1,209 @@
+/**
+ * UIManager — 集中管理所有 DOM 操作、过渡动画、分数动画
+ */
+export class UIManager {
+    constructor() {
+        // DOM 引用
+        this.elMenu = document.getElementById('menu');
+        this.elHud = document.getElementById('hud');
+        this.elGameOver = document.getElementById('gameover');
+        this.elLoading = document.getElementById('loading');
+        this.elCountdown = document.getElementById('countdown');
+        this.elCountdownNum = document.querySelector('#countdown .countdown-number');
+
+        this.elScore = document.getElementById('score');
+        this.elDistance = document.getElementById('distance');
+        this.elFinalScore = document.getElementById('final-score');
+        this.elHighScore = document.getElementById('high-score');
+        this.elNewRecord = document.getElementById('new-record');
+        this.elStatDistance = document.getElementById('stat-distance');
+        this.elStatTime = document.getElementById('stat-time');
+        this.elStatSpeed = document.getElementById('stat-speed');
+        this.elMilestonePopup = document.getElementById('milestone-popup');
+        this.elMuteBtn = document.getElementById('btn-mute');
+
+        // 分数动画状态
+        this._displayScore = 0;
+        this._actualScore = 0;
+
+        // 里程碑动画
+        this._milestoneTimer = 0;
+    }
+
+    /* ─── 界面切换 ─── */
+
+    showLoading() {
+        this._show(this.elLoading);
+        this._hide(this.elMenu);
+        this._hide(this.elHud);
+        this._hide(this.elGameOver);
+        this._hide(this.elCountdown);
+    }
+
+    showMenu() {
+        this._hide(this.elLoading);
+        this._show(this.elMenu);
+        this._hide(this.elHud);
+        this._hide(this.elGameOver);
+        this._hide(this.elCountdown);
+    }
+
+    showCountdown(onComplete) {
+        this._hide(this.elMenu);
+        this._hide(this.elGameOver);
+        this._hide(this.elHud);
+        this._show(this.elCountdown);
+
+        const steps = ['3', '2', '1', 'GO!'];
+        let i = 0;
+
+        const tick = () => {
+            if (i >= steps.length) {
+                this._hide(this.elCountdown);
+                this._show(this.elHud);
+                onComplete();
+                return;
+            }
+            this.elCountdownNum.textContent = steps[i];
+            // 重新触发动画
+            this.elCountdownNum.classList.remove('animate');
+            void this.elCountdownNum.offsetWidth; // force reflow
+            this.elCountdownNum.classList.add('animate');
+            i++;
+            setTimeout(tick, i <= 3 ? 600 : 500);
+        };
+        tick();
+    }
+
+    showPlaying() {
+        this._hide(this.elMenu);
+        this._hide(this.elGameOver);
+        this._hide(this.elCountdown);
+        this._show(this.elHud);
+        this._displayScore = 0;
+        this._actualScore = 0;
+    }
+
+    showGameOver(stats) {
+        this._hide(this.elHud);
+        this._show(this.elGameOver);
+
+        // 填充结算数据
+        this.elFinalScore.textContent = stats.score;
+        this.elHighScore.textContent = stats.highScore;
+        if (this.elStatDistance) this.elStatDistance.textContent = Math.floor(stats.distance) + 'm';
+        if (this.elStatTime) this.elStatTime.textContent = stats.time.toFixed(1) + 's';
+        if (this.elStatSpeed) this.elStatSpeed.textContent = stats.maxSpeed.toFixed(1);
+
+        // 新纪录
+        if (this.elNewRecord) {
+            if (stats.isNewRecord) {
+                this.elNewRecord.classList.remove('hidden');
+            } else {
+                this.elNewRecord.classList.add('hidden');
+            }
+        }
+
+        // 触发面板入场动画
+        const panel = this.elGameOver.querySelector('.gameover-panel');
+        if (panel) {
+            panel.classList.remove('animate-in');
+            void panel.offsetWidth;
+            panel.classList.add('animate-in');
+        }
+    }
+
+    /* ─── HUD 更新 ─── */
+
+    updateScore(score) {
+        this._actualScore = score;
+    }
+
+    updateDistance(distance) {
+        if (this.elDistance) {
+            this.elDistance.textContent = Math.floor(distance) + 'm';
+        }
+    }
+
+    update(dt) {
+        // 分数滚动动画
+        if (this._displayScore < this._actualScore) {
+            const diff = this._actualScore - this._displayScore;
+            const step = Math.max(1, Math.ceil(diff * dt * 8));
+            this._displayScore = Math.min(this._actualScore, this._displayScore + step);
+            if (this.elScore) this.elScore.textContent = this._displayScore;
+        }
+
+        // 里程碑消失计时
+        if (this._milestoneTimer > 0) {
+            this._milestoneTimer -= dt;
+            if (this._milestoneTimer <= 0 && this.elMilestonePopup) {
+                this.elMilestonePopup.classList.add('hidden');
+            }
+        }
+    }
+
+    /* ─── 里程碑弹窗 ─── */
+
+    flashMilestone(score) {
+        if (!this.elMilestonePopup) return;
+
+        let text = 'NICE!';
+        if (score >= 5000) text = 'INCREDIBLE!';
+        else if (score >= 2500) text = 'AMAZING!';
+        else if (score >= 1000) text = 'GREAT!';
+        else if (score >= 500) text = 'COOL!';
+
+        this.elMilestonePopup.textContent = text;
+        this.elMilestonePopup.classList.remove('hidden');
+        this.elMilestonePopup.classList.remove('animate');
+        void this.elMilestonePopup.offsetWidth;
+        this.elMilestonePopup.classList.add('animate');
+
+        this._milestoneTimer = 1.2;
+
+        // 分数闪光
+        if (this.elScore) {
+            this.elScore.classList.remove('score-flash');
+            void this.elScore.offsetWidth;
+            this.elScore.classList.add('score-flash');
+        }
+    }
+
+    flashSpeedUp() {
+        // 分数区域短暂变色提示
+        if (this.elScore) {
+            this.elScore.classList.remove('speed-flash');
+            void this.elScore.offsetWidth;
+            this.elScore.classList.add('speed-flash');
+        }
+    }
+
+    /* ─── 静音按钮 ─── */
+
+    setupMuteButton(muted, onToggle) {
+        if (!this.elMuteBtn) return;
+        this._updateMuteIcon(muted);
+        this.elMuteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const newMuted = onToggle();
+            this._updateMuteIcon(newMuted);
+        });
+    }
+
+    _updateMuteIcon(muted) {
+        if (this.elMuteBtn) {
+            this.elMuteBtn.textContent = muted ? '🔇' : '🔊';
+        }
+    }
+
+    /* ─── 工具方法 ─── */
+
+    _show(el) {
+        if (el) el.classList.remove('hidden');
+    }
+
+    _hide(el) {
+        if (el) el.classList.add('hidden');
+    }
+}

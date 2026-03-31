@@ -26,7 +26,7 @@
         </div>
 
         <!-- 主菜单 -->
-        <div id="menu" class="overlay">
+        <div id="menu" class="overlay hidden">
             <h1>城市跑酷</h1>
             <p class="subtitle">CITY RUNNER</p>
             <button id="btn-start" class="btn">开始游戏</button>
@@ -36,20 +36,45 @@
             </p>
         </div>
 
+        <!-- 倒计时 -->
+        <div id="countdown" class="overlay hidden">
+            <span class="countdown-number"></span>
+        </div>
+
         <!-- HUD -->
         <div id="hud" class="overlay hidden">
-            <div class="hud-row">
-                <div class="hud-item">分数: <span id="score">0</span></div>
-                <div class="hud-item">距离: <span id="distance">0m</span></div>
+            <div class="hud-top">
+                <div class="hud-score"><span id="score">0</span></div>
+                <div class="hud-distance"><span id="distance">0m</span></div>
             </div>
+            <button id="btn-mute" class="mute-btn">🔊</button>
+            <div id="milestone-popup" class="milestone-popup hidden"></div>
         </div>
 
         <!-- 结算 -->
         <div id="gameover" class="overlay hidden">
-            <h2>游戏结束</h2>
-            <p class="score-display">得分: <span id="final-score">0</span></p>
-            <p class="score-display">最高: <span id="high-score">0</span></p>
-            <button id="btn-restart" class="btn">再来一局</button>
+            <div class="gameover-panel">
+                <h2>游戏结束</h2>
+                <p class="score-display">得分: <span id="final-score">0</span></p>
+                <p class="score-display">最高: <span id="high-score">0</span>
+                    <span id="new-record" class="new-record hidden">NEW RECORD!</span>
+                </p>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-label">距离</span>
+                        <span id="stat-distance" class="stat-value">0m</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">时间</span>
+                        <span id="stat-time" class="stat-value">0s</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">最高速度</span>
+                        <span id="stat-speed" class="stat-value">0</span>
+                    </div>
+                </div>
+                <button id="btn-restart" class="btn">再来一局</button>
+            </div>
         </div>
     </div>
 
