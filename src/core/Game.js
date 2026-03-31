@@ -11,6 +11,9 @@ import { CollisionDetector } from '../player/CollisionDetector.js';
 import { ChunkManager } from '../world/ChunkManager.js';
 import { ScoreManager } from '../gameplay/ScoreManager.js';
 import { DifficultyManager } from '../gameplay/DifficultyManager.js';
+import { ParticleSystem } from '../effects/ParticleSystem.js';
+import { SpeedLines } from '../effects/SpeedLines.js';
+import { PostProcessing } from '../rendering/PostProcessing.js';
 
 const STATE = { MENU: 'menu', PLAYING: 'playing', GAME_OVER: 'gameover' };
 
@@ -23,19 +26,19 @@ export class Game {
         this.camera = createCamera();
         setupResize(this.camera, this.renderer);
 
-        // 子系统 (不依赖资源的)
+        // 程序化纹理 (同步生成，最先初始化)
+        this.textureGen = new TextureGenerator();
+        this.textureGen.generateAll();
+
+        // 子系统
         this.input = new InputManager();
         this.lighting = new LightingRig(this.scene);
         this.sky = new SkyController(this.scene);
         this.cameraCtrl = new CameraController(this.camera);
-        this.player = new PlayerController(this.scene);
+        this.player = new PlayerController(this.scene, this.textureGen);
         this.collision = new CollisionDetector();
         this.score = new ScoreManager();
         this.difficulty = new DifficultyManager();
-
-        // 程序化纹理 (同步生成，加载画面之前)
-        this.textureGen = new TextureGenerator();
-        this.textureGen.generateAll();
 
         // 地面
         const groundGeo = new THREE.PlaneGeometry(200, 1000);
@@ -53,6 +56,10 @@ export class Game {
         this.state = STATE.MENU;
         this.worldOffset = 0;
         this.clock = new THREE.Clock();
+
+        // 特效状态追踪
+        this._prevGrounded = true;
+        this._prevAlive = true;
 
         // UI 引用
         this.uiMenu = document.getElementById('menu');
@@ -91,10 +98,25 @@ export class Game {
         // 隐藏 loading，显示菜单
         this.uiLoading.classList.add('hidden');
 
-        // 创建世界分块管理器 (依赖 assetManager + textureGen)
+        // 创建世界分块管理器
         this.chunks = new ChunkManager(this.scene, this.assetManager, this.textureGen);
         this.chunks.reset();
         this.chunks.update(0, 0);
+
+        // 特效系统
+        this.particles = new ParticleSystem(this.scene);
+        this.speedLines = new SpeedLines(this.camera);
+
+        // 后处理 (Bloom)
+        try {
+            this.postProcessing = new PostProcessing(this.renderer, this.scene, this.camera);
+            window.addEventListener('resize', () => {
+                this.postProcessing.setSize(window.innerWidth, window.innerHeight);
+            });
+        } catch (e) {
+            console.warn('PostProcessing unavailable:', e);
+            this.postProcessing = null;
+        }
 
         this._showUI(STATE.MENU);
     }
@@ -107,7 +129,11 @@ export class Game {
         this.difficulty.reset();
         this.chunks.reset();
         this.chunks.update(0, 0);
-        this.clock.getDelta(); // 清除累积
+        this.clock.getDelta();
+        this._prevGrounded = true;
+        this._prevAlive = true;
+        if (this.particles) this.particles.reset();
+        if (this.speedLines) this.speedLines.reset();
         this._showUI(STATE.PLAYING);
     }
 
@@ -129,7 +155,7 @@ export class Game {
     update() {
         const dt = Math.min(this.clock.getDelta(), 0.05);
 
-        // 输入 (菜单中按空格开始)
+        // 输入
         const actions = this.input.consume();
         if (this.state === STATE.MENU && (actions.jump || actions.slide)) {
             this.startGame();
@@ -143,15 +169,47 @@ export class Game {
         // 天空动画始终更新
         this.sky.update(dt);
 
+        // 特效始终更新 (死亡爆炸需要在 GAME_OVER 状态播完)
+        const playerState = {
+            alive: this.player.alive,
+            isGrounded: this.player.isGrounded,
+            isSliding: this.player.isSliding,
+        };
+        const curSpeed = this.state === STATE.PLAYING ? this.difficulty.speed : 0;
+
+        if (this.particles) {
+            this.particles.update(dt, this.player.position, playerState, curSpeed);
+        }
+        if (this.speedLines) {
+            const intensity = Math.max(0, (curSpeed - 20) / 15);
+            this.speedLines.update(dt, intensity);
+        }
+
         if (this.state !== STATE.PLAYING) return;
 
         // 难度 & 速度
         this.difficulty.update(dt);
         const speed = this.difficulty.speed;
 
-        // 玩家输入
+        // 捕获前一帧状态
+        const wasGrounded = this._prevGrounded;
+        const wasAlive = this._prevAlive;
+
+        // 玩家输入 & 更新
         this.player.handleInput(actions);
         this.player.update(dt, speed);
+
+        // 粒子触发：跳跃起飞
+        if (wasGrounded && !this.player.isGrounded && this.player.velocityY > 0) {
+            this.particles.triggerJumpDust(this.player.position);
+        }
+        // 粒子触发：落地
+        if (!wasGrounded && this.player.isGrounded) {
+            this.particles.triggerLandDust(this.player.position);
+        }
+
+        this._prevGrounded = this.player.isGrounded;
+        this._prevAlive = this.player.alive;
 
         // 世界滚动
         const dz = speed * dt;
@@ -168,6 +226,7 @@ export class Game {
         const hit = this.collision.check(this.player.position, this.player.isSliding, obstacles);
         if (hit) {
             this.player.die();
+            if (this.particles) this.particles.triggerExplosion(this.player.position);
             this.gameOver();
             return;
         }
@@ -186,7 +245,11 @@ export class Game {
     }
 
     render() {
-        this.renderer.render(this.scene, this.camera);
+        if (this.postProcessing && this.postProcessing.enabled) {
+            this.postProcessing.render();
+        } else {
+            this.renderer.render(this.scene, this.camera);
+        }
     }
 
     run() {

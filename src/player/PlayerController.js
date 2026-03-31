@@ -8,8 +8,9 @@ const GRAVITY = -30;
 const SLIDE_DURATION = 0.8;
 
 export class PlayerController {
-    constructor(scene) {
+    constructor(scene, textureGen) {
         this.scene = scene;
+        this.textureGen = textureGen;
         this.characterModel = new CharacterModel();
         this.animController = null;
 
@@ -35,7 +36,7 @@ export class PlayerController {
 
     async _loadCharacter() {
         try {
-            await this.characterModel.load(this.scene);
+            await this.characterModel.load(this.scene, this.textureGen);
             this.animController = new AnimationController(this.characterModel);
             this.animController.transitionTo('Idle', 0);
             this.modelReady = true;

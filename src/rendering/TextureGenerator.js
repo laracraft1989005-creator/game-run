@@ -29,6 +29,36 @@ export class TextureGenerator {
         return this.cache.get(key) || null;
     }
 
+    /** 给角色模型的所有 mesh 上色（卡通风格皮肤 + 衣服） */
+    applyCharacterSkin(meshRoot) {
+        if (!this.cache.has('char_skin')) {
+            this.cache.set('char_skin', this._generateCharSkin());
+            this.cache.set('char_outfit', this._generateCharOutfit());
+        }
+        const skinTex = this.cache.get('char_skin');
+        const outfitTex = this.cache.get('char_outfit');
+
+        let meshIndex = 0;
+        meshRoot.traverse(child => {
+            if (!child.isMesh) return;
+            // 保留原始 UV，替换材质
+            const isLikelySkin = child.name.toLowerCase().includes('head')
+                || child.name.toLowerCase().includes('hand')
+                || child.name.toLowerCase().includes('skin');
+            if (isLikelySkin) {
+                child.material = new THREE.MeshStandardMaterial({
+                    map: skinTex, roughness: 0.8, metalness: 0.0
+                });
+            } else {
+                child.material = new THREE.MeshStandardMaterial({
+                    map: outfitTex, roughness: 0.6, metalness: 0.05,
+                    emissive: 0x111122, emissiveIntensity: 0.1
+                });
+            }
+            meshIndex++;
+        });
+    }
+
     dispose() {
         for (const [, tex] of this.cache) tex.dispose();
         this.cache.clear();
@@ -344,6 +374,74 @@ export class TextureGenerator {
         const tex = this._toTexture(ctx, THREE.RepeatWrapping, THREE.RepeatWrapping);
         tex.repeat.set(10, 50);
         return tex;
+    }
+
+    // ─── 角色皮肤 ────────────────────────────────
+
+    _generateCharSkin() {
+        const W = 128, H = 128;
+        const ctx = this._ctx(W, H);
+
+        // 肤色底色 (暖色调)
+        ctx.fillStyle = '#E8B88A';
+        ctx.fillRect(0, 0, W, H);
+
+        // 微妙的肤色变化
+        for (let y = 0; y < H; y += 4) {
+            for (let x = 0; x < W; x += 4) {
+                const r = 0xE0 + Math.floor(Math.random() * 0x10);
+                const g = 0xA8 + Math.floor(Math.random() * 0x18);
+                const b = 0x78 + Math.floor(Math.random() * 0x18);
+                ctx.fillStyle = `rgba(${r},${g},${b},0.3)`;
+                ctx.fillRect(x, y, 4, 4);
+            }
+        }
+
+        return this._toTexture(ctx, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping);
+    }
+
+    _generateCharOutfit() {
+        const W = 256, H = 256;
+        const ctx = this._ctx(W, H);
+
+        // 运动服底色 (深蓝)
+        ctx.fillStyle = '#2244AA';
+        ctx.fillRect(0, 0, W, H);
+
+        // 布料纹理噪点
+        for (let y = 0; y < H; y += 2) {
+            for (let x = 0; x < W; x += 2) {
+                const v = Math.random() * 20 - 10;
+                ctx.fillStyle = `rgba(${34 + v},${68 + v},${170 + v},0.4)`;
+                ctx.fillRect(x, y, 2, 2);
+            }
+        }
+
+        // 胸前水平条纹装饰
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, H * 0.35, W, 4);
+        ctx.fillRect(0, H * 0.38, W, 2);
+
+        // 侧边荧光条
+        ctx.fillStyle = '#44FFAA';
+        ctx.fillRect(0, 0, 6, H);
+        ctx.fillRect(W - 6, 0, 6, H);
+
+        // 下半部分 (裤子，深灰)
+        const pantsY = H * 0.55;
+        ctx.fillStyle = '#333344';
+        ctx.fillRect(0, pantsY, W, H - pantsY);
+
+        // 裤子噪点
+        for (let y = pantsY; y < H; y += 2) {
+            for (let x = 0; x < W; x += 2) {
+                const v = Math.random() * 10 - 5;
+                ctx.fillStyle = `rgba(${51 + v},${51 + v},${68 + v},0.3)`;
+                ctx.fillRect(x, y, 2, 2);
+            }
+        }
+
+        return this._toTexture(ctx, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping);
     }
 
     // ─── 工具 ───────────────────────────────────
