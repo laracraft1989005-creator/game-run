@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>城市跑酷 City Runner</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.163.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.163.0/examples/jsm/"
+        }
+    }
+    </script>
+</head>
+<body>
+    <div id="game-container">
+        <!-- 主菜单 -->
+        <div id="menu" class="overlay">
+            <h1>城市跑酷</h1>
+            <p class="subtitle">CITY RUNNER</p>
+            <button id="btn-start" class="btn">开始游戏</button>
+            <p class="controls-hint">
+                ← → 切换车道 &nbsp;|&nbsp; ↑ / 空格 跳跃 &nbsp;|&nbsp; ↓ 滑铲<br>
+                手机: 左右滑动切换 · 上滑跳跃 · 下滑滑铲
+            </p>
+        </div>
+
+        <!-- HUD -->
+        <div id="hud" class="overlay hidden">
+            <div class="hud-row">
+                <div class="hud-item">分数: <span id="score">0</span></div>
+                <div class="hud-item">距离: <span id="distance">0m</span></div>
+            </div>
+        </div>
+
+        <!-- 结算 -->
+        <div id="gameover" class="overlay hidden">
+            <h2>游戏结束</h2>
+            <p class="score-display">得分: <span id="final-score">0</span></p>
+            <p class="score-display">最高: <span id="high-score">0</span></p>
+            <button id="btn-restart" class="btn">再来一局</button>
+        </div>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    overflow: hidden;
+    background: #000;
+    font-family: 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+}
+
+#game-container {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+}
+
+#game-container canvas {
+    display: block;
+}
+
+/* UI 叠加层公共样式 */
+.overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.overlay.hidden { display: none; }
+
+.overlay * { pointer-events: auto; }
+
+/* 主菜单 */
+#menu {
+    background: rgba(0, 0, 0, 0.4);
+}
+
+#menu h1 {
+    font-size: 4rem;
+    color: #fff;
+    text-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.2em;
+}
+
+#menu .subtitle {
+    font-size: 1.2rem;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 2rem;
+}
+
+.btn {
+    padding: 14px 48px;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, #4488FF, #6644FF);
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 4px 15px rgba(68,136,255,0.4);
+}
+
+.btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 25px rgba(68,136,255,0.6);
+}
+
+.controls-hint {
+    margin-top: 2rem;
+    color: rgba(255,255,255,0.5);
+    font-size: 0.9rem;
+}
+
+/* HUD */
+#hud {
+    justify-content: flex-start;
+    align-items: flex-start;
+    padding: 20px 30px;
+    pointer-events: none;
+}
+
+#hud .hud-row {
+    display: flex;
+    gap: 30px;
+}
+
+.hud-item {
+    color: #fff;
+    font-size: 1.4rem;
+    font-weight: 700;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+.hud-item span {
+    color: #FFD700;
+}
+
+/* 结算 */
+#gameover {
+    background: rgba(0, 0, 0, 0.6);
+}
+
+#gameover h2 {
+    font-size: 3rem;
+    color: #FF4444;
+    text-shadow: 0 4px 15px rgba(255,0,0,0.3);
+    margin-bottom: 1rem;
+}
+
+.score-display {
+    color: #fff;
+    font-size: 1.8rem;
+    margin: 0.3rem 0;
+}
+
+.score-display span {
+    color: #FFD700;
+    font-weight: 700;
+}
+
+#gameover .btn {
+    margin-top: 1.5rem;
+}
