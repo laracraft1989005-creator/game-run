@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { CHUNK_LENGTH, ROAD_WIDTH, LANES } from './LaneConfig.js?v=20260331r1';
-import { selectPattern } from '../gameplay/ObstaclePatterns.js?v=20260331r1';
+import { CHUNK_LENGTH, ROAD_WIDTH, LANES } from './LaneConfig.js?v=20260331r2';
+import { selectPattern } from '../gameplay/ObstaclePatterns.js?v=20260331r2';
 
 // 程序化兜底用的颜色
 const BUILDING_COLORS = [0x6688AA, 0x7799BB, 0x5577AA, 0x8899BB, 0x6677CC, 0x9988AA];
@@ -156,8 +156,9 @@ export class CityChunk {
     }
 
     _placeKenneyBuilding(side, baseX, z) {
-        // 60% commercial, 40% suburban
-        const cat = Math.random() < 0.6 ? 'commercial' : 'suburban';
+        const tc = this._themeConfig;
+        const ratio = tc ? tc.commercialRatio : 0.6;
+        const cat = Math.random() < ratio ? 'commercial' : 'suburban';
         const result = this.assetManager.getRandomBuilding(cat);
 
         if (!result) {
@@ -166,8 +167,9 @@ export class CityChunk {
 
         const { model, size } = result;
 
-        // 随机缩放 0.8x - 1.2x
-        const scaleFactor = 0.8 + Math.random() * 0.4;
+        const scaleMin = tc ? tc.buildingScaleMin : 0.8;
+        const scaleMax = tc ? tc.buildingScaleMax : 1.2;
+        const scaleFactor = scaleMin + Math.random() * (scaleMax - scaleMin);
         model.scale.setScalar(scaleFactor);
 
         // 随机轴对齐旋转
@@ -188,6 +190,14 @@ export class CityChunk {
             if (child.isMesh) {
                 child.castShadow = true;
                 child.receiveShadow = true;
+                // 霓虹 emissive（主题强度 > 0 时）
+                if (tc && tc.buildingEmissiveIntensity > 0) {
+                    const neonColors = [0xFF00FF, 0x00FFFF, 0xFF4488, 0x8844FF, 0x44FF88];
+                    const mat = child.material.clone();
+                    mat.emissive = new THREE.Color(neonColors[Math.floor(Math.random() * neonColors.length)]);
+                    mat.emissiveIntensity = tc.buildingEmissiveIntensity;
+                    child.material = mat;
+                }
             }
         });
 
@@ -197,18 +207,25 @@ export class CityChunk {
     }
 
     _placeFallbackBuilding(side, baseX, z) {
+        const tc = this._themeConfig;
         const w = 3 + Math.random() * 4;
         const h = 4 + Math.random() * 12;
         const d = 4 + Math.random() * 4;
         const geo = new THREE.BoxGeometry(w, h, d);
-        const texKey = 'building_' + Math.floor(Math.random() * 10);
+        // 使用主题纹理集
+        const texPrefix = tc && tc.textureSet ? tc.textureSet + '/' : '';
+        const texKey = texPrefix + 'building_' + Math.floor(Math.random() * 10);
         const buildTex = this.textureGen ? this.textureGen.get(texKey) : null;
-        const mat = buildTex
-            ? new THREE.MeshStandardMaterial({ map: buildTex, roughness: 0.7, metalness: 0.1 })
-            : new THREE.MeshStandardMaterial({
-                color: BUILDING_COLORS[Math.floor(Math.random() * BUILDING_COLORS.length)],
-                flatShading: true
-            });
+        const matOpts = buildTex
+            ? { map: buildTex, roughness: 0.7, metalness: 0.1 }
+            : { color: BUILDING_COLORS[Math.floor(Math.random() * BUILDING_COLORS.length)], flatShading: true };
+        // 霓虹 emissive
+        if (tc && tc.buildingEmissiveIntensity > 0) {
+            const neonColors = [0xFF00FF, 0x00FFFF, 0xFF4488, 0x8844FF, 0x44FF88];
+            matOpts.emissive = neonColors[Math.floor(Math.random() * neonColors.length)];
+            matOpts.emissiveIntensity = tc.buildingEmissiveIntensity;
+        }
+        const mat = new THREE.MeshStandardMaterial(matOpts);
         const bld = new THREE.Mesh(geo, mat);
         bld.position.set(baseX + side * w / 2, h / 2, z + d / 2);
         bld.castShadow = true;
@@ -240,8 +257,8 @@ export class CityChunk {
             let z = -CHUNK_LENGTH / 2 + 2;
 
             while (z < CHUNK_LENGTH / 2 - 2) {
-                // 30% 概率放一个装饰物
-                if (Math.random() < 0.3) {
+                const density = this._themeConfig ? this._themeConfig.propDensity : 0.3;
+                if (Math.random() < density) {
                     const result = this.assetManager.getRandomProp();
                     if (result) {
                         const { model, size } = result;
@@ -281,9 +298,10 @@ export class CityChunk {
 
     // ─── 障碍物系统 ─────────────────────────────────
 
-    generate(zPos, difficulty, coinSystem, powerUpSystem) {
+    generate(zPos, difficulty, coinSystem, powerUpSystem, themeWorldConfig) {
         this.group.position.z = zPos;
         this.active = true;
+        this._themeConfig = themeWorldConfig || null;
 
         // 重建建筑和装饰 (每次回收都刷新，增加多样性)
         this._clearBuildings();

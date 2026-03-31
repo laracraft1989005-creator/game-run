@@ -1,27 +1,58 @@
 import * as THREE from 'three';
 
-const BUILDING_WALL_COLORS = [
-    '#5a7a9a', '#6a8aaa', '#4a6a8a', '#7a8aaa',
-    '#5a6aaa', '#8a7a9a', '#6a7a7a', '#5a8a7a',
-    '#7a6a8a', '#8a8a7a',
-];
-
-const WINDOW_LIT_COLORS = ['#FFE4A0', '#FFD080', '#FFFFC0', '#E0D0A0'];
+// 默认纹理参数（兼容不传主题配置的场景）
+const DEFAULT_TEXTURES = {
+    wallColors: ['#5a7a9a','#6a8aaa','#4a6a8a','#7a8aaa','#5a6aaa','#8a7a9a','#6a7a7a','#5a8a7a','#7a6a8a','#8a8a7a'],
+    windowLitColors: ['#FFE4A0','#FFD080','#FFFFC0','#E0D0A0'],
+    windowLitChance: 0.6,
+    roadBase: '#3a3a3a',
+    sidewalkBase: '#999999',
+    groundBase: '#4a4a42',
+};
 
 export class TextureGenerator {
     constructor() {
         this.cache = new Map();
     }
 
-    generateAll() {
-        this.cache.set('road', this._generateRoad());
-        this.cache.set('sidewalk', this._generateSidewalk());
-        this.cache.set('ground', this._generateGround());
+    generateAll(themeConfigs) {
+        // 障碍物纹理（不分主题）
         this.cache.set('obstacle_low', this._generateObstacleLow());
         this.cache.set('obstacle_full', this._generateObstacleFull());
 
+        if (themeConfigs && themeConfigs.length > 0) {
+            // 为每个主题生成一套纹理
+            for (const theme of themeConfigs) {
+                this._generateSet(theme.name, theme.textures);
+            }
+            // 兼容：默认 key 指向第一个主题
+            this._aliasSet(themeConfigs[0].name);
+        } else {
+            // 无主题配置时，用默认参数
+            this._generateSet('default', DEFAULT_TEXTURES);
+            this._aliasSet('default');
+        }
+    }
+
+    _generateSet(setName, tex) {
+        this.cache.set(setName + '/road', this._generateRoad(tex.roadBase));
+        this.cache.set(setName + '/sidewalk', this._generateSidewalk(tex.sidewalkBase));
+        this.cache.set(setName + '/ground', this._generateGround(tex.groundBase));
         for (let i = 0; i < 10; i++) {
-            this.cache.set('building_' + i, this._generateBuilding(i));
+            this.cache.set(setName + '/building_' + i,
+                this._generateBuilding(i, tex.wallColors, tex.windowLitColors, tex.windowLitChance));
+        }
+    }
+
+    /** 创建无前缀别名，兼容旧代码 */
+    _aliasSet(setName) {
+        for (const suffix of ['road', 'sidewalk', 'ground']) {
+            const themed = this.cache.get(setName + '/' + suffix);
+            if (themed) this.cache.set(suffix, themed);
+        }
+        for (let i = 0; i < 10; i++) {
+            const themed = this.cache.get(setName + '/building_' + i);
+            if (themed) this.cache.set('building_' + i, themed);
         }
     }
 
@@ -41,7 +72,6 @@ export class TextureGenerator {
         let meshIndex = 0;
         meshRoot.traverse(child => {
             if (!child.isMesh) return;
-            // 保留原始 UV，替换材质
             const isLikelySkin = child.name.toLowerCase().includes('head')
                 || child.name.toLowerCase().includes('hand')
                 || child.name.toLowerCase().includes('skin');
@@ -66,18 +96,18 @@ export class TextureGenerator {
 
     // ─── 道路：沥青 + 标线 ────────────────────────
 
-    _generateRoad() {
+    _generateRoad(baseColor = '#3a3a3a') {
         const W = 512, H = 1024;
         const ctx = this._ctx(W, H);
 
-        // 沥青底色
-        ctx.fillStyle = '#3a3a3a';
+        ctx.fillStyle = baseColor;
         ctx.fillRect(0, 0, W, H);
 
-        // 噪点颗粒
+        // 解析基础亮度做噪点
+        const bv = parseInt(baseColor.slice(1, 3), 16);
         for (let y = 0; y < H; y += 2) {
             for (let x = 0; x < W; x += 2) {
-                const v = 0x33 + Math.floor(Math.random() * 0x11);
+                const v = bv - 7 + Math.floor(Math.random() * 14);
                 ctx.fillStyle = `rgb(${v},${v},${v})`;
                 ctx.fillRect(x, y, 2, 2);
             }
@@ -93,7 +123,7 @@ export class TextureGenerator {
                 cy += Math.random() * 60;
                 ctx.lineTo(cx, cy);
             }
-            ctx.strokeStyle = '#2a2a2a';
+            ctx.strokeStyle = this._darken(baseColor, 16);
             ctx.lineWidth = 1 + Math.random();
             ctx.stroke();
         }
@@ -101,31 +131,30 @@ export class TextureGenerator {
         // 磨损斑
         for (let i = 0; i < 4; i++) {
             ctx.beginPath();
-            ctx.ellipse(
-                Math.random() * W, Math.random() * H,
+            ctx.ellipse(Math.random() * W, Math.random() * H,
                 20 + Math.random() * 40, 10 + Math.random() * 20,
-                Math.random() * Math.PI, 0, Math.PI * 2
-            );
+                Math.random() * Math.PI, 0, Math.PI * 2);
             ctx.fillStyle = 'rgba(66,66,66,0.3)';
             ctx.fill();
         }
 
-        // 边线 (对应道路宽度两侧)
+        // 标线颜色（暗色路面用亮标线）
+        const markColor = bv < 0x30 ? '#666666' : '#CCCCCC';
+        const laneColor = bv < 0x30 ? '#444444' : '#888888';
+
         const edgeL = 42, edgeR = W - 42;
-        ctx.strokeStyle = '#CCCCCC';
+        ctx.strokeStyle = markColor;
         ctx.lineWidth = 4;
         ctx.beginPath(); ctx.moveTo(edgeL, 0); ctx.lineTo(edgeL, H); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(edgeR, 0); ctx.lineTo(edgeR, H); ctx.stroke();
 
-        // 中心虚线
         ctx.setLineDash([40, 40]);
-        ctx.strokeStyle = '#CCCCCC';
+        ctx.strokeStyle = markColor;
         ctx.lineWidth = 3;
         ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke();
 
-        // 车道分隔线 (±1/4 处)
         ctx.setLineDash([30, 50]);
-        ctx.strokeStyle = '#888888';
+        ctx.strokeStyle = laneColor;
         ctx.lineWidth = 2;
         const lane1 = W * 0.333, lane2 = W * 0.667;
         ctx.beginPath(); ctx.moveTo(lane1, 0); ctx.lineTo(lane1, H); ctx.stroke();
@@ -137,27 +166,24 @@ export class TextureGenerator {
 
     // ─── 人行道：混凝土方砖 ──────────────────────
 
-    _generateSidewalk() {
+    _generateSidewalk(baseColor = '#999999') {
         const W = 256, H = 512;
         const ctx = this._ctx(W, H);
+        const bv = parseInt(baseColor.slice(1, 3), 16);
 
-        // 底色
-        ctx.fillStyle = '#999999';
+        ctx.fillStyle = baseColor;
         ctx.fillRect(0, 0, W, H);
 
-        // 方砖网格
         const tile = 64;
         for (let y = 0; y < H; y += tile) {
             for (let x = 0; x < W; x += tile) {
-                // 砖块色差
-                const v = 0x90 + Math.floor(Math.random() * 0x18);
+                const v = bv - 10 + Math.floor(Math.random() * 20);
                 ctx.fillStyle = `rgb(${v},${v},${v})`;
                 ctx.fillRect(x + 2, y + 2, tile - 4, tile - 4);
             }
         }
 
-        // 缝隙
-        ctx.strokeStyle = '#777777';
+        ctx.strokeStyle = this._darken(baseColor, 30);
         ctx.lineWidth = 2;
         for (let y = 0; y <= H; y += tile) {
             ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
@@ -166,7 +192,6 @@ export class TextureGenerator {
             ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
         }
 
-        // 裂缝
         for (let i = 0; i < 3; i++) {
             ctx.beginPath();
             let cx = Math.random() * W, cy = Math.random() * H;
@@ -176,12 +201,11 @@ export class TextureGenerator {
                 cy += Math.random() * 40;
                 ctx.lineTo(cx, cy);
             }
-            ctx.strokeStyle = '#777777';
+            ctx.strokeStyle = this._darken(baseColor, 30);
             ctx.lineWidth = 1;
             ctx.stroke();
         }
 
-        // 污渍
         for (let i = 0; i < 5; i++) {
             ctx.beginPath();
             ctx.arc(Math.random() * W, Math.random() * H, 5 + Math.random() * 12, 0, Math.PI * 2);
@@ -194,18 +218,20 @@ export class TextureGenerator {
 
     // ─── 建筑立面：窗户网格 ─────────────────────
 
-    _generateBuilding(index) {
+    _generateBuilding(index, wallColors, windowLitColors, windowLitChance) {
+        wallColors = wallColors || DEFAULT_TEXTURES.wallColors;
+        windowLitColors = windowLitColors || DEFAULT_TEXTURES.windowLitColors;
+        windowLitChance = windowLitChance ?? DEFAULT_TEXTURES.windowLitChance;
+
         const W = 256, H = 512;
         const ctx = this._ctx(W, H);
 
-        // 墙体色
-        const wallColor = BUILDING_WALL_COLORS[index % BUILDING_WALL_COLORS.length];
+        const wallColor = wallColors[index % wallColors.length];
         ctx.fillStyle = wallColor;
         ctx.fillRect(0, 0, W, H);
 
-        // 窗户参数
-        const cols = 4 + (index % 3);      // 4-6 列
-        const rows = 8 + (index % 7);      // 8-14 行
+        const cols = 4 + (index % 3);
+        const rows = 8 + (index % 7);
         const winW = 20, winH = 28;
         const gapX = (W - cols * winW) / (cols + 1);
         const gapY = (H - rows * winH) / (rows + 1);
@@ -213,7 +239,6 @@ export class TextureGenerator {
         for (let r = 0; r < rows; r++) {
             const y = gapY + r * (winH + gapY);
 
-            // 楼层分隔线
             ctx.strokeStyle = this._darken(wallColor, 15);
             ctx.lineWidth = 1;
             ctx.beginPath();
@@ -224,20 +249,17 @@ export class TextureGenerator {
             for (let c = 0; c < cols; c++) {
                 const x = gapX + c * (winW + gapX);
 
-                // 窗框
                 ctx.fillStyle = '#1a2a3a';
                 ctx.fillRect(x, y, winW, winH);
 
-                // 60% 亮窗
-                if (Math.random() < 0.6) {
-                    const litColor = WINDOW_LIT_COLORS[Math.floor(Math.random() * WINDOW_LIT_COLORS.length)];
+                if (Math.random() < windowLitChance) {
+                    const litColor = windowLitColors[Math.floor(Math.random() * windowLitColors.length)];
                     ctx.globalAlpha = 0.7 + Math.random() * 0.25;
                     ctx.fillStyle = litColor;
                     ctx.fillRect(x + 2, y + 2, winW - 4, winH - 4);
                     ctx.globalAlpha = 1;
                 }
 
-                // 十字窗棂
                 ctx.strokeStyle = '#2a3a4a';
                 ctx.lineWidth = 1;
                 ctx.beginPath();
@@ -247,7 +269,6 @@ export class TextureGenerator {
             }
         }
 
-        // 边缘立柱
         ctx.fillStyle = this._lighten(wallColor, 10);
         ctx.fillRect(0, 0, 4, H);
         ctx.fillRect(W - 4, 0, 4, H);
@@ -265,7 +286,6 @@ export class TextureGenerator {
         ctx.save();
         ctx.translate(W / 2, H / 2);
         ctx.rotate(-Math.PI / 4);
-
         const diag = Math.max(W, H) * 2;
         for (let i = -diag; i < diag; i += stripe * 2) {
             ctx.fillStyle = '#CC3333';
@@ -275,7 +295,6 @@ export class TextureGenerator {
         }
         ctx.restore();
 
-        // 黑色边框
         ctx.strokeStyle = '#222222';
         ctx.lineWidth = 3;
         ctx.strokeRect(1, 1, W - 2, H - 2);
@@ -289,11 +308,9 @@ export class TextureGenerator {
         const W = 128, H = 128;
         const ctx = this._ctx(W, H);
 
-        // 橙色底
         ctx.fillStyle = '#DD7700';
         ctx.fillRect(0, 0, W, H);
 
-        // 上下警示条 (黄黑斜条纹)
         const bandH = 28;
         for (const bandY of [0, H - bandH]) {
             ctx.save();
@@ -312,7 +329,6 @@ export class TextureGenerator {
             ctx.restore();
         }
 
-        // 中部菱形网格
         ctx.strokeStyle = '#AA5500';
         ctx.lineWidth = 1;
         const spacing = 10;
@@ -321,7 +337,6 @@ export class TextureGenerator {
             ctx.beginPath(); ctx.moveTo(x, H - bandH); ctx.lineTo(x + (H - 2 * bandH), bandH); ctx.stroke();
         }
 
-        // 立柱
         ctx.fillStyle = '#995500';
         ctx.fillRect(0, 0, 5, H);
         ctx.fillRect(W - 5, 0, 5, H);
@@ -331,43 +346,43 @@ export class TextureGenerator {
 
     // ─── 地面：暗色地表 ─────────────────────────
 
-    _generateGround() {
+    _generateGround(baseColor = '#4a4a42') {
         const W = 512, H = 512;
         const ctx = this._ctx(W, H);
 
-        // 底色
-        ctx.fillStyle = '#4a4a42';
+        ctx.fillStyle = baseColor;
         ctx.fillRect(0, 0, W, H);
 
-        // 土壤噪点
+        const bv = parseInt(baseColor.slice(1, 3), 16);
         for (let y = 0; y < H; y += 4) {
             for (let x = 0; x < W; x += 4) {
-                const r = 0x3a + Math.floor(Math.random() * 0x1b);
-                const g = 0x3a + Math.floor(Math.random() * 0x15);
-                const b = 0x35 + Math.floor(Math.random() * 0x13);
-                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                const r = bv - 12 + Math.floor(Math.random() * 24);
+                const g = bv - 12 + Math.floor(Math.random() * 20);
+                const b = bv - 16 + Math.floor(Math.random() * 18);
+                ctx.fillStyle = `rgb(${Math.max(0,r)},${Math.max(0,g)},${Math.max(0,b)})`;
                 ctx.fillRect(x, y, 4, 4);
             }
         }
 
-        // 碎石点
         for (let i = 0; i < 50; i++) {
             ctx.beginPath();
             ctx.arc(Math.random() * W, Math.random() * H, 2 + Math.random() * 4, 0, Math.PI * 2);
-            const v = 0x55 + Math.floor(Math.random() * 0x10);
+            const v = bv + 10 + Math.floor(Math.random() * 16);
             ctx.fillStyle = `rgb(${v},${v},${v - 8})`;
             ctx.fill();
         }
 
-        // 淡绿草斑
-        for (let i = 0; i < 10; i++) {
-            const cx = Math.random() * W, cy = Math.random() * H;
-            for (let j = 0; j < 4; j++) {
-                ctx.beginPath();
-                ctx.arc(cx + (Math.random() - 0.5) * 20, cy + (Math.random() - 0.5) * 20,
-                    5 + Math.random() * 10, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(80,100,60,0.12)';
-                ctx.fill();
+        // 草斑（仅亮色地面时可见）
+        if (bv > 0x30) {
+            for (let i = 0; i < 10; i++) {
+                const cx = Math.random() * W, cy = Math.random() * H;
+                for (let j = 0; j < 4; j++) {
+                    ctx.beginPath();
+                    ctx.arc(cx + (Math.random() - 0.5) * 20, cy + (Math.random() - 0.5) * 20,
+                        5 + Math.random() * 10, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(80,100,60,0.12)';
+                    ctx.fill();
+                }
             }
         }
 
@@ -381,12 +396,8 @@ export class TextureGenerator {
     _generateCharSkin() {
         const W = 128, H = 128;
         const ctx = this._ctx(W, H);
-
-        // 肤色底色 (暖色调)
         ctx.fillStyle = '#E8B88A';
         ctx.fillRect(0, 0, W, H);
-
-        // 微妙的肤色变化
         for (let y = 0; y < H; y += 4) {
             for (let x = 0; x < W; x += 4) {
                 const r = 0xE0 + Math.floor(Math.random() * 0x10);
@@ -396,19 +407,14 @@ export class TextureGenerator {
                 ctx.fillRect(x, y, 4, 4);
             }
         }
-
         return this._toTexture(ctx, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping);
     }
 
     _generateCharOutfit() {
         const W = 256, H = 256;
         const ctx = this._ctx(W, H);
-
-        // 运动服底色 (深蓝)
         ctx.fillStyle = '#2244AA';
         ctx.fillRect(0, 0, W, H);
-
-        // 布料纹理噪点
         for (let y = 0; y < H; y += 2) {
             for (let x = 0; x < W; x += 2) {
                 const v = Math.random() * 20 - 10;
@@ -416,23 +422,15 @@ export class TextureGenerator {
                 ctx.fillRect(x, y, 2, 2);
             }
         }
-
-        // 胸前水平条纹装饰
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, H * 0.35, W, 4);
         ctx.fillRect(0, H * 0.38, W, 2);
-
-        // 侧边荧光条
         ctx.fillStyle = '#44FFAA';
         ctx.fillRect(0, 0, 6, H);
         ctx.fillRect(W - 6, 0, 6, H);
-
-        // 下半部分 (裤子，深灰)
         const pantsY = H * 0.55;
         ctx.fillStyle = '#333344';
         ctx.fillRect(0, pantsY, W, H - pantsY);
-
-        // 裤子噪点
         for (let y = pantsY; y < H; y += 2) {
             for (let x = 0; x < W; x += 2) {
                 const v = Math.random() * 10 - 5;
@@ -440,7 +438,6 @@ export class TextureGenerator {
                 ctx.fillRect(x, y, 2, 2);
             }
         }
-
         return this._toTexture(ctx, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping);
     }
 

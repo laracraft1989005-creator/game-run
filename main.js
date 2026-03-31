@@ -1,4 +1,4 @@
-import { Game } from './src/core/Game.js?v=20260331r1';
+import { Game } from './src/core/Game.js?v=20260331r2';
 
 const container = document.getElementById('game-container');
 const game = new Game(container);

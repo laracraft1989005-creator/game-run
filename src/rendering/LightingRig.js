@@ -3,12 +3,12 @@ import * as THREE from 'three';
 export class LightingRig {
     constructor(scene) {
         // 半球光: 天蓝 + 暖棕地面反射
-        const hemi = new THREE.HemisphereLight(0x87CEEB, 0x886633, 0.6);
-        scene.add(hemi);
+        this.hemisphere = new THREE.HemisphereLight(0x87CEEB, 0x886633, 0.6);
+        scene.add(this.hemisphere);
 
         // 环境光
-        const ambient = new THREE.AmbientLight(0x404060, 0.3);
-        scene.add(ambient);
+        this.ambient = new THREE.AmbientLight(0x404060, 0.3);
+        scene.add(this.ambient);
 
         // 方向光 (太阳)
         const sun = new THREE.DirectionalLight(0xFFFFDD, 1.2);

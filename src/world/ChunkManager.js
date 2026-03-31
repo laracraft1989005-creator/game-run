@@ -1,5 +1,5 @@
-import { CityChunk } from './CityChunk.js?v=20260331r1';
-import { CHUNK_LENGTH } from './LaneConfig.js?v=20260331r1';
+import { CityChunk } from './CityChunk.js?v=20260331r2';
+import { CHUNK_LENGTH } from './LaneConfig.js?v=20260331r2';
 
 const VISIBLE_DISTANCE = 160;
 const RECYCLE_DISTANCE = 40;
@@ -34,12 +34,12 @@ export class ChunkManager {
         this.nextChunkZ = CHUNK_LENGTH; // 从玩家前面一点开始
     }
 
-    update(worldOffset, difficulty) {
+    update(worldOffset, difficulty, themeWorldConfig) {
         // 向前生成 (nextChunkZ 已跟随 scrollWorld 同步滚动，直接比较屏幕空间)
         while (this.nextChunkZ > -VISIBLE_DISTANCE) {
             const chunk = this._getChunk();
             chunk.group.visible = true;
-            chunk.generate(this.nextChunkZ, difficulty, this.coinSystem, this.powerUpSystem);
+            chunk.generate(this.nextChunkZ, difficulty, this.coinSystem, this.powerUpSystem, themeWorldConfig);
             this.chunks.push(chunk);
             this.nextChunkZ -= CHUNK_LENGTH;
         }

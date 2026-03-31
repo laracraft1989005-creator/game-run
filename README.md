@@ -24,6 +24,16 @@
 
 ## 版本历史
 
+### v0.8 — 环境主题渐变：郊区黎明 → 都市黄昏 → 霓虹之夜
+- **三阶段主题系统**（随难度自动过渡，4 秒平滑缓动）
+  - 郊区黎明 (0-30%): 明亮蓝天、暖白阳光、低矮房屋
+  - 都市黄昏 (30-60%): 橙紫日落、暖色灯光、高层商业楼
+  - 霓虹之夜 (60%+): 暗夜天空、紫色雾气、霓虹发光建筑、强 Bloom
+- **全局渲染过渡**：天空/灯光/雾气/Bloom/场景背景每帧插值
+- **多主题纹理集**：3 套建筑/道路/人行道/地面程序化纹理，启动时预生成
+- **建筑主题化**：配色、密度、高度、emissive 霓虹发光随主题变化
+- **云朵渐变**：白 → 橙 → 暗紫，透明度随主题淡入淡出
+
 ### v0.7 — 玩法深度：金币 + 道具 + 障碍物花样
 - **金币系统**
   - 程序化金色旋转金币，三种排列模式（直线、弧线、网格）
@@ -104,7 +114,7 @@ city-runner/
     ├── core/               Game, InputManager, AssetManager, SoundManager, UIManager
     ├── gameplay/           ScoreManager, DifficultyManager, CoinSystem, PowerUpSystem, ObstaclePatterns
     ├── player/             PlayerController, CharacterModel, AnimationController
-    ├── rendering/          SceneSetup, Camera, Lighting, Sky
+    ├── rendering/          SceneSetup, Camera, Lighting, Sky, ThemeManager
     └── world/              ChunkManager, CityChunk, LaneConfig
 ```
 

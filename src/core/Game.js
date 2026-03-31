@@ -1,23 +1,24 @@
 import * as THREE from 'three';
-import { createRenderer, createCamera, createScene, setupResize } from '../rendering/SceneSetup.js?v=20260331r1';
-import { LightingRig } from '../rendering/LightingRig.js?v=20260331r1';
-import { SkyController } from '../rendering/SkyController.js?v=20260331r1';
-import { CameraController } from '../rendering/CameraController.js?v=20260331r1';
-import { InputManager } from './InputManager.js?v=20260331r1';
-import { AssetManager } from './AssetManager.js?v=20260331r1';
-import { TextureGenerator } from '../rendering/TextureGenerator.js?v=20260331r1';
-import { PlayerController } from '../player/PlayerController.js?v=20260331r1';
-import { CollisionDetector } from '../player/CollisionDetector.js?v=20260331r1';
-import { ChunkManager } from '../world/ChunkManager.js?v=20260331r1';
-import { ScoreManager } from '../gameplay/ScoreManager.js?v=20260331r1';
-import { DifficultyManager } from '../gameplay/DifficultyManager.js?v=20260331r1';
-import { ParticleSystem } from '../effects/ParticleSystem.js?v=20260331r1';
-import { SpeedLines } from '../effects/SpeedLines.js?v=20260331r1';
-import { PostProcessing } from '../rendering/PostProcessing.js?v=20260331r1';
-import { SoundManager } from './SoundManager.js?v=20260331r1';
-import { UIManager } from './UIManager.js?v=20260331r1';
-import { CoinSystem } from '../gameplay/CoinSystem.js?v=20260331r1';
-import { PowerUpSystem } from '../gameplay/PowerUpSystem.js?v=20260331r1';
+import { createRenderer, createCamera, createScene, setupResize } from '../rendering/SceneSetup.js?v=20260331r2';
+import { LightingRig } from '../rendering/LightingRig.js?v=20260331r2';
+import { SkyController } from '../rendering/SkyController.js?v=20260331r2';
+import { CameraController } from '../rendering/CameraController.js?v=20260331r2';
+import { InputManager } from './InputManager.js?v=20260331r2';
+import { AssetManager } from './AssetManager.js?v=20260331r2';
+import { TextureGenerator } from '../rendering/TextureGenerator.js?v=20260331r2';
+import { PlayerController } from '../player/PlayerController.js?v=20260331r2';
+import { CollisionDetector } from '../player/CollisionDetector.js?v=20260331r2';
+import { ChunkManager } from '../world/ChunkManager.js?v=20260331r2';
+import { ScoreManager } from '../gameplay/ScoreManager.js?v=20260331r2';
+import { DifficultyManager } from '../gameplay/DifficultyManager.js?v=20260331r2';
+import { ParticleSystem } from '../effects/ParticleSystem.js?v=20260331r2';
+import { SpeedLines } from '../effects/SpeedLines.js?v=20260331r2';
+import { PostProcessing } from '../rendering/PostProcessing.js?v=20260331r2';
+import { SoundManager } from './SoundManager.js?v=20260331r2';
+import { UIManager } from './UIManager.js?v=20260331r2';
+import { CoinSystem } from '../gameplay/CoinSystem.js?v=20260331r2';
+import { PowerUpSystem } from '../gameplay/PowerUpSystem.js?v=20260331r2';
+import { ThemeManager, THEME_CONFIGS } from '../rendering/ThemeManager.js?v=20260331r2';
 
 const STATE = { MENU: 'menu', COUNTDOWN: 'countdown', PLAYING: 'playing', GAME_OVER: 'gameover' };
 
@@ -30,9 +31,9 @@ export class Game {
         this.camera = createCamera();
         setupResize(this.camera, this.renderer);
 
-        // 程序化纹理 (同步生成，最先初始化)
+        // 程序化纹理 (同步生成，最先初始化，含多主题纹理集)
         this.textureGen = new TextureGenerator();
-        this.textureGen.generateAll();
+        this.textureGen.generateAll(THEME_CONFIGS);
 
         // 子系统
         this.input = new InputManager();
@@ -127,6 +128,12 @@ export class Game {
             this.postProcessing = null;
         }
 
+        // 主题系统
+        this.themeManager = new ThemeManager(
+            this.scene, this.renderer,
+            this.sky, this.lighting, this.postProcessing
+        );
+
         this.ui.showMenu();
     }
 
@@ -141,6 +148,7 @@ export class Game {
         this.difficulty.reset();
         this.coinSystem.reset();
         this.powerUpSystem.reset();
+        if (this.themeManager) this.themeManager.reset();
         this.chunks.reset();
         this.chunks.update(0, 0);
         this.clock.getDelta();
@@ -216,6 +224,11 @@ export class Game {
         this.difficulty.update(dt);
         const speed = this.difficulty.speed;
 
+        // 主题过渡
+        if (this.themeManager) {
+            this.themeManager.update(dt, this.difficulty.getDifficulty());
+        }
+
         // 音乐节拍跟随速度
         this.sound.setMusicTempo(speed);
 
@@ -263,7 +276,8 @@ export class Game {
         if (this.ground.position.z > 500) this.ground.position.z -= 1000;
 
         // 分块管理
-        this.chunks.update(this.worldOffset, this.difficulty.getDifficulty());
+        const worldConfig = this.themeManager ? this.themeManager.getWorldConfig() : null;
+        this.chunks.update(this.worldOffset, this.difficulty.getDifficulty(), worldConfig);
 
         // 金币动画（自旋 + 浮动）
         this.coinSystem.update(dt, this.chunks.chunks);

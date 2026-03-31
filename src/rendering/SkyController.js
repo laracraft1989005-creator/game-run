@@ -22,7 +22,8 @@ export class SkyController {
 
         // 程序化云朵
         this.clouds = [];
-        const cloudMat = new THREE.MeshLambertMaterial({ color: 0xFFFFFF, flatShading: true });
+        this.cloudMaterial = new THREE.MeshLambertMaterial({ color: 0xFFFFFF, flatShading: true, transparent: true, opacity: 1.0 });
+        const cloudMat = this.cloudMaterial;
         for (let i = 0; i < 25; i++) {
             const cloud = this._createCloud(cloudMat);
             cloud.position.set(
