@@ -6,15 +6,16 @@ const RECYCLE_DISTANCE = 40;
 const POOL_SIZE = 6;
 
 export class ChunkManager {
-    constructor(scene) {
+    constructor(scene, assetManager) {
         this.scene = scene;
+        this.assetManager = assetManager;
         this.chunks = [];
         this.pool = [];
         this.nextChunkZ = 0;
 
         // 预创建分块池
         for (let i = 0; i < POOL_SIZE; i++) {
-            this.pool.push(new CityChunk(scene));
+            this.pool.push(new CityChunk(scene, assetManager));
         }
     }
 
@@ -52,10 +53,16 @@ export class ChunkManager {
             }
         }
 
-        // 更新分块世界位置 (世界滚动)
+        // 更新碰撞盒 + 阴影纪律: 仅近处 chunk 投射阴影
         for (const chunk of this.chunks) {
-            chunk.group.position.z = chunk.group.position.z; // 位置已设好
             chunk.updateCollisionBoxes();
+            const dist = Math.abs(chunk.group.position.z);
+            const castShadow = dist < CHUNK_LENGTH * 2.5;
+            for (const b of chunk.buildings) {
+                b.traverse(c => {
+                    if (c.isMesh) c.castShadow = castShadow;
+                });
+            }
         }
     }
 
@@ -77,7 +84,6 @@ export class ChunkManager {
 
     _getChunk() {
         if (this.pool.length > 0) return this.pool.pop();
-        const chunk = new CityChunk(this.scene);
-        return chunk;
+        return new CityChunk(this.scene, this.assetManager);
     }
 }

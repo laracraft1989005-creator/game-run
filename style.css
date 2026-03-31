@@ -126,3 +126,38 @@ body {
 #gameover .btn {
     margin-top: 1.5rem;
 }
+
+/* Loading 画面 */
+#loading {
+    background: rgba(0, 0, 0, 0.85);
+}
+
+.loading-title {
+    font-size: 3rem;
+    color: #fff;
+    letter-spacing: 0.3em;
+    margin-bottom: 2rem;
+    text-shadow: 0 4px 20px rgba(68,136,255,0.5);
+}
+
+.progress-bar {
+    width: 320px;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #4488FF, #6644FF);
+    border-radius: 4px;
+    transition: width 0.2s ease;
+}
+
+.loading-text {
+    margin-top: 1rem;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.85rem;
+}

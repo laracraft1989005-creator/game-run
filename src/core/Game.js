@@ -4,6 +4,7 @@ import { LightingRig } from '../rendering/LightingRig.js';
 import { SkyController } from '../rendering/SkyController.js';
 import { CameraController } from '../rendering/CameraController.js';
 import { InputManager } from './InputManager.js';
+import { AssetManager } from './AssetManager.js';
 import { PlayerController } from '../player/PlayerController.js';
 import { CollisionDetector } from '../player/CollisionDetector.js';
 import { ChunkManager } from '../world/ChunkManager.js';
@@ -21,20 +22,19 @@ export class Game {
         this.camera = createCamera();
         setupResize(this.camera, this.renderer);
 
-        // 子系统
+        // 子系统 (不依赖资源的)
         this.input = new InputManager();
         this.lighting = new LightingRig(this.scene);
         this.sky = new SkyController(this.scene);
         this.cameraCtrl = new CameraController(this.camera);
         this.player = new PlayerController(this.scene);
         this.collision = new CollisionDetector();
-        this.chunks = new ChunkManager(this.scene);
         this.score = new ScoreManager();
         this.difficulty = new DifficultyManager();
 
-        // 地面 (大平面作为补充)
+        // 地面 (城市地面用深灰色)
         const groundGeo = new THREE.PlaneGeometry(200, 1000);
-        const groundMat = new THREE.MeshStandardMaterial({ color: 0x338833 });
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
         this.ground = new THREE.Mesh(groundGeo, groundMat);
         this.ground.rotation.x = -Math.PI / 2;
         this.ground.position.y = -0.05;
@@ -50,6 +50,7 @@ export class Game {
         this.uiMenu = document.getElementById('menu');
         this.uiHud = document.getElementById('hud');
         this.uiGameOver = document.getElementById('gameover');
+        this.uiLoading = document.getElementById('loading');
         this.uiScore = document.getElementById('score');
         this.uiDistance = document.getElementById('distance');
         this.uiFinalScore = document.getElementById('final-score');
@@ -59,7 +60,31 @@ export class Game {
         document.getElementById('btn-start')?.addEventListener('click', () => this.startGame());
         document.getElementById('btn-restart')?.addEventListener('click', () => this.startGame());
 
-        // 初始化世界
+        // 初始时隐藏菜单和 HUD，只显示 loading
+        this.uiMenu.classList.add('hidden');
+        this.uiHud.classList.add('hidden');
+        this.uiGameOver.classList.add('hidden');
+    }
+
+    async init() {
+        // 加载 Kenney 资源
+        this.assetManager = new AssetManager();
+        const progressFill = this.uiLoading.querySelector('.progress-fill');
+        const loadingText = this.uiLoading.querySelector('.loading-text');
+
+        this.assetManager.onProgress = (loaded, total) => {
+            const pct = Math.round(loaded / total * 100);
+            progressFill.style.width = pct + '%';
+            loadingText.textContent = `Loading city assets... ${loaded}/${total}`;
+        };
+
+        await this.assetManager.loadAll();
+
+        // 隐藏 loading，显示菜单
+        this.uiLoading.classList.add('hidden');
+
+        // 创建世界分块管理器 (依赖 assetManager)
+        this.chunks = new ChunkManager(this.scene, this.assetManager);
         this.chunks.reset();
         this.chunks.update(0, 0);
 
