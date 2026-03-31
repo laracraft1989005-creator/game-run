@@ -118,7 +118,7 @@ export class Game {
 
         // 玩家输入
         this.player.handleInput(actions);
-        this.player.update(dt);
+        this.player.update(dt, speed);
 
         // 世界滚动
         const dz = speed * dt;
