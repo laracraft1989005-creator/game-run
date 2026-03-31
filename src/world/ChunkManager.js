@@ -30,11 +30,8 @@ export class ChunkManager {
     }
 
     update(worldOffset, difficulty) {
-        // worldOffset: 世界已滚动的距离 (正数, 递增)
-        const playerWorldZ = 0; // 玩家始终在 z=0
-
-        // 向前生成
-        while (this.nextChunkZ - worldOffset > -VISIBLE_DISTANCE) {
+        // 向前生成 (nextChunkZ 已跟随 scrollWorld 同步滚动，直接比较屏幕空间)
+        while (this.nextChunkZ > -VISIBLE_DISTANCE) {
             const chunk = this._getChunk();
             chunk.group.visible = true;
             chunk.generate(this.nextChunkZ, difficulty);
@@ -42,10 +39,9 @@ export class ChunkManager {
             this.nextChunkZ -= CHUNK_LENGTH;
         }
 
-        // 回收后方
+        // 回收后方 (position.z 已包含滚动偏移，无需再加 worldOffset)
         for (let i = this.chunks.length - 1; i >= 0; i--) {
-            const cz = this.chunks[i].group.position.z + worldOffset;
-            if (cz > RECYCLE_DISTANCE) {
+            if (this.chunks[i].group.position.z > RECYCLE_DISTANCE) {
                 const chunk = this.chunks.splice(i, 1)[0];
                 chunk.recycle();
                 chunk.group.visible = false;
@@ -70,6 +66,8 @@ export class ChunkManager {
         for (const chunk of this.chunks) {
             chunk.group.position.z += dz;
         }
+        // nextChunkZ 也跟随滚动，保持屏幕空间一致性
+        this.nextChunkZ += dz;
     }
 
     getActiveObstacles() {
