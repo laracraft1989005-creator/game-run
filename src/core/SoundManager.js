@@ -285,6 +285,19 @@ export class SoundManager {
         this._noise(0.15, 3000, 0.15);
     }
 
+    playRideStart() {
+        if (!this.audioCtx) return;
+        this._tone(220, 0.3, 'sawtooth', 0.25);
+        this._tone(330, 0.3, 'sawtooth', 0.2);
+        this._sweep(200, 600, 0.5, 'sine', 0.15);
+    }
+
+    playRideEnd() {
+        if (!this.audioCtx) return;
+        this._sweep(400, 100, 0.6, 'sawtooth', 0.2);
+        this._noise(0.3, 500, 0.15);
+    }
+
     /* ─── 脚步声 ─── */
 
     updateFootsteps(speed) {

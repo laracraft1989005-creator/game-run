@@ -2,8 +2,8 @@
  * UIManager — 集中管理所有 DOM 操作、过渡动画、分数动画
  */
 
-import { ProgressionManager } from '../gameplay/ProgressionManager.js?v=202604011200';
-import { TextureGenerator } from '../rendering/TextureGenerator.js?v=202604011200';
+import { ProgressionManager } from '../gameplay/ProgressionManager.js?v=202604011500';
+import { TextureGenerator } from '../rendering/TextureGenerator.js?v=202604011500';
 
 export class UIManager {
     constructor() {
@@ -244,6 +244,16 @@ export class UIManager {
     }
 
     /* ─── 里程碑弹窗 ─── */
+
+    flashMilestoneText(text) {
+        if (!this.elMilestonePopup) return;
+        this.elMilestonePopup.textContent = text;
+        this.elMilestonePopup.classList.remove('hidden');
+        this.elMilestonePopup.classList.remove('animate');
+        void this.elMilestonePopup.offsetWidth;
+        this.elMilestonePopup.classList.add('animate');
+        this._milestoneTimer = 1.2;
+    }
 
     flashMilestone(score) {
         if (!this.elMilestonePopup) return;

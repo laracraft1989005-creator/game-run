@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { CHUNK_LENGTH, ROAD_WIDTH, LANES } from './LaneConfig.js?v=202604011200';
-import { selectPattern } from '../gameplay/ObstaclePatterns.js?v=202604011200';
+import { CHUNK_LENGTH, ROAD_WIDTH, LANES } from './LaneConfig.js?v=202604011500';
+import { selectPattern } from '../gameplay/ObstaclePatterns.js?v=202604011500';
 
 // 程序化兜底用的颜色
 const BUILDING_COLORS = [0x6688AA, 0x7799BB, 0x5577AA, 0x8899BB, 0x6677CC, 0x9988AA];

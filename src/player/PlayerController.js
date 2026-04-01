@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { LANES, LANE_SWITCH_SPEED } from '../world/LaneConfig.js?v=202604011200';
-import { CharacterModel } from './CharacterModel.js?v=202604011200';
-import { AnimationController } from './AnimationController.js?v=202604011200';
+import { LANES, LANE_SWITCH_SPEED } from '../world/LaneConfig.js?v=202604011500';
+import { CharacterModel } from './CharacterModel.js?v=202604011500';
+import { AnimationController } from './AnimationController.js?v=202604011500';
 
 const JUMP_VELOCITY = 12;
 const GRAVITY = -30;
@@ -31,6 +31,7 @@ export class PlayerController {
         this.alive = true;
         this.invulnerable = false;
         this.invulnerableTimer = 0;
+        this._groundY = 0; // 动态地面高度（骑乘系统用）
         this.modelReady = false;
 
         this._loadCharacter(characterId || 'runner');
@@ -87,8 +88,8 @@ export class PlayerController {
         if (!this.isGrounded) {
             this.velocityY += GRAVITY * dt;
             this.position.y += this.velocityY * dt;
-            if (this.position.y <= 0) {
-                this.position.y = 0;
+            if (this.position.y <= this._groundY) {
+                this.position.y = this._groundY;
                 this.velocityY = 0;
                 this.isGrounded = true;
                 if (this.animController) this.animController.transitionTo('Run', 0.15);
@@ -141,6 +142,9 @@ export class PlayerController {
         }
     }
 
+    /** 设置动态地面高度（骑乘系统用） */
+    setGroundY(y) { this._groundY = y; }
+
     /** 弹射板超级跳 */
     applyJumpBoost(multiplier = 2) {
         if (!this.alive || !this.isGrounded) return false;
@@ -171,6 +175,7 @@ export class PlayerController {
         this.alive = true;
         this.invulnerable = false;
         this.invulnerableTimer = 0;
+        this._groundY = 0;
         if (this.modelReady) {
             this.characterModel.setPosition(0, 0, 0);
             this.characterModel.setScaleY(1);
