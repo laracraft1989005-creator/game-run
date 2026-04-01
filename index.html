@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>城市跑酷 City Runner</title>
-    <link rel="stylesheet" href="style.css?v=20260331r2">
+    <link rel="stylesheet" href="style.css?v=202603311420">
     <script type="importmap">
     {
         "imports": {
@@ -29,6 +29,13 @@
         <div id="menu" class="overlay hidden">
             <h1>城市跑酷</h1>
             <p class="subtitle">CITY RUNNER</p>
+            <div id="char-picker" class="char-picker">
+                <button class="char-btn selected" data-char="runner"><span class="char-dot" style="background:#2244AA"></span>跑者</button>
+                <button class="char-btn" data-char="fire"><span class="char-dot" style="background:#CC2222"></span>烈焰</button>
+                <button class="char-btn" data-char="cyber"><span class="char-dot" style="background:#00FFFF"></span>赛博</button>
+                <button class="char-btn" data-char="nature"><span class="char-dot" style="background:#226633"></span>森林</button>
+                <button class="char-btn" data-char="royal"><span class="char-dot" style="background:#6622AA"></span>皇家</button>
+            </div>
             <button id="btn-start" class="btn">开始游戏</button>
             <p class="controls-hint">
                 ← → 切换车道 &nbsp;|&nbsp; ↑ / 空格 跳跃 &nbsp;|&nbsp; ↓ 滑铲<br>
@@ -103,6 +110,6 @@
         });
     </script>
     <pre id="debug-log" style="position:fixed;bottom:0;left:0;color:lime;background:rgba(0,0,0,0.8);font-size:12px;padding:8px;max-height:200px;overflow:auto;z-index:9999;pointer-events:none;"></pre>
-    <script type="module" src="main.js?v=20260331r2"></script>
+    <script type="module" src="main.js?v=202603311420"></script>
 </body>
 </html>

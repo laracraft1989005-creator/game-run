@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { CHUNK_LENGTH, ROAD_WIDTH, LANES } from './LaneConfig.js?v=20260331r2';
-import { selectPattern } from '../gameplay/ObstaclePatterns.js?v=20260331r2';
+import { CHUNK_LENGTH, ROAD_WIDTH, LANES } from './LaneConfig.js?v=202603311420';
+import { selectPattern } from '../gameplay/ObstaclePatterns.js?v=202603311420';
 
 // 程序化兜底用的颜色
 const BUILDING_COLORS = [0x6688AA, 0x7799BB, 0x5577AA, 0x8899BB, 0x6677CC, 0x9988AA];
@@ -8,7 +8,7 @@ const BUILDING_COLORS = [0x6688AA, 0x7799BB, 0x5577AA, 0x8899BB, 0x6677CC, 0x998
 // 碰撞盒尺寸 (游戏性关键，不随视觉变化)
 const COLLISION_DIMS = {
     low:  { w: 2, h: 1,   yOff: 0.5  },
-    full: { w: 2, h: 2.5, yOff: 1.25 },
+    full: { w: 2, h: 2.0, yOff: 1.0 },
 };
 
 export class CityChunk {

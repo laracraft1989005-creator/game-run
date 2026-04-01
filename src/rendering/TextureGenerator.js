@@ -60,16 +60,32 @@ export class TextureGenerator {
         return this.cache.get(key) || null;
     }
 
-    /** 给角色模型的所有 mesh 上色（卡通风格皮肤 + 衣服） */
-    applyCharacterSkin(meshRoot) {
-        if (!this.cache.has('char_skin')) {
-            this.cache.set('char_skin', this._generateCharSkin());
-            this.cache.set('char_outfit', this._generateCharOutfit());
-        }
-        const skinTex = this.cache.get('char_skin');
-        const outfitTex = this.cache.get('char_outfit');
+    // ─── 角色皮肤系统 ─────────────────────────────
 
-        let meshIndex = 0;
+    /** 角色配色方案 */
+    static CHARACTER_SKINS = [
+        { id: 'runner',  name: '跑者',  skin: '#E8B88A', body: '#2244AA', stripe: '#44FFAA', pants: '#333344', emissive: 0x111122 },
+        { id: 'fire',    name: '烈焰',  skin: '#D4A574', body: '#CC2222', stripe: '#FFAA22', pants: '#442222', emissive: 0x331111 },
+        { id: 'cyber',   name: '赛博',  skin: '#C8D8E8', body: '#1a1a2e', stripe: '#00FFFF', pants: '#0a0a1e', emissive: 0x002233 },
+        { id: 'nature',  name: '森林',  skin: '#E8C89A', body: '#226633', stripe: '#88FF44', pants: '#223322', emissive: 0x112211 },
+        { id: 'royal',   name: '皇家',  skin: '#F0C8A0', body: '#6622AA', stripe: '#FFD700', pants: '#332244', emissive: 0x221133 },
+    ];
+
+    /** 给角色模型上色（按角色 ID） */
+    applyCharacterSkin(meshRoot, characterId = 'runner') {
+        const skinDef = TextureGenerator.CHARACTER_SKINS.find(s => s.id === characterId)
+            || TextureGenerator.CHARACTER_SKINS[0];
+
+        const skinKey = 'char_skin_' + skinDef.id;
+        const outfitKey = 'char_outfit_' + skinDef.id;
+
+        if (!this.cache.has(skinKey)) {
+            this.cache.set(skinKey, this._generateCharSkin(skinDef.skin));
+            this.cache.set(outfitKey, this._generateCharOutfit(skinDef.body, skinDef.stripe, skinDef.pants));
+        }
+        const skinTex = this.cache.get(skinKey);
+        const outfitTex = this.cache.get(outfitKey);
+
         meshRoot.traverse(child => {
             if (!child.isMesh) return;
             const isLikelySkin = child.name.toLowerCase().includes('head')
@@ -82,10 +98,9 @@ export class TextureGenerator {
             } else {
                 child.material = new THREE.MeshStandardMaterial({
                     map: outfitTex, roughness: 0.6, metalness: 0.05,
-                    emissive: 0x111122, emissiveIntensity: 0.1
+                    emissive: skinDef.emissive, emissiveIntensity: 0.1
                 });
             }
-            meshIndex++;
         });
     }
 
@@ -393,16 +408,19 @@ export class TextureGenerator {
 
     // ─── 角色皮肤 ────────────────────────────────
 
-    _generateCharSkin() {
+    _generateCharSkin(baseHex = '#E8B88A') {
         const W = 128, H = 128;
         const ctx = this._ctx(W, H);
-        ctx.fillStyle = '#E8B88A';
+        ctx.fillStyle = baseHex;
         ctx.fillRect(0, 0, W, H);
+        const br = parseInt(baseHex.slice(1, 3), 16);
+        const bg = parseInt(baseHex.slice(3, 5), 16);
+        const bb = parseInt(baseHex.slice(5, 7), 16);
         for (let y = 0; y < H; y += 4) {
             for (let x = 0; x < W; x += 4) {
-                const r = 0xE0 + Math.floor(Math.random() * 0x10);
-                const g = 0xA8 + Math.floor(Math.random() * 0x18);
-                const b = 0x78 + Math.floor(Math.random() * 0x18);
+                const r = Math.min(255, br - 8 + Math.floor(Math.random() * 16));
+                const g = Math.min(255, bg - 8 + Math.floor(Math.random() * 16));
+                const b = Math.min(255, bb - 8 + Math.floor(Math.random() * 16));
                 ctx.fillStyle = `rgba(${r},${g},${b},0.3)`;
                 ctx.fillRect(x, y, 4, 4);
             }
@@ -410,31 +428,37 @@ export class TextureGenerator {
         return this._toTexture(ctx, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping);
     }
 
-    _generateCharOutfit() {
+    _generateCharOutfit(bodyHex = '#2244AA', stripeHex = '#44FFAA', pantsHex = '#333344') {
         const W = 256, H = 256;
         const ctx = this._ctx(W, H);
-        ctx.fillStyle = '#2244AA';
+        ctx.fillStyle = bodyHex;
         ctx.fillRect(0, 0, W, H);
+        const bodyR = parseInt(bodyHex.slice(1, 3), 16);
+        const bodyG = parseInt(bodyHex.slice(3, 5), 16);
+        const bodyB = parseInt(bodyHex.slice(5, 7), 16);
         for (let y = 0; y < H; y += 2) {
             for (let x = 0; x < W; x += 2) {
                 const v = Math.random() * 20 - 10;
-                ctx.fillStyle = `rgba(${34 + v},${68 + v},${170 + v},0.4)`;
+                ctx.fillStyle = `rgba(${Math.max(0, bodyR + v)},${Math.max(0, bodyG + v)},${Math.max(0, bodyB + v)},0.4)`;
                 ctx.fillRect(x, y, 2, 2);
             }
         }
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(0, H * 0.35, W, 4);
         ctx.fillRect(0, H * 0.38, W, 2);
-        ctx.fillStyle = '#44FFAA';
+        ctx.fillStyle = stripeHex;
         ctx.fillRect(0, 0, 6, H);
         ctx.fillRect(W - 6, 0, 6, H);
         const pantsY = H * 0.55;
-        ctx.fillStyle = '#333344';
+        ctx.fillStyle = pantsHex;
         ctx.fillRect(0, pantsY, W, H - pantsY);
+        const pR = parseInt(pantsHex.slice(1, 3), 16);
+        const pG = parseInt(pantsHex.slice(3, 5), 16);
+        const pB = parseInt(pantsHex.slice(5, 7), 16);
         for (let y = pantsY; y < H; y += 2) {
             for (let x = 0; x < W; x += 2) {
                 const v = Math.random() * 10 - 5;
-                ctx.fillStyle = `rgba(${51 + v},${51 + v},${68 + v},0.3)`;
+                ctx.fillStyle = `rgba(${Math.max(0, pR + v)},${Math.max(0, pG + v)},${Math.max(0, pB + v)},0.3)`;
                 ctx.fillRect(x, y, 2, 2);
             }
         }

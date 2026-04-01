@@ -1,14 +1,14 @@
 import * as THREE from 'three';
-import { LANES, LANE_SWITCH_SPEED } from '../world/LaneConfig.js?v=20260331r2';
-import { CharacterModel } from './CharacterModel.js?v=20260331r2';
-import { AnimationController } from './AnimationController.js?v=20260331r2';
+import { LANES, LANE_SWITCH_SPEED } from '../world/LaneConfig.js?v=202603311420';
+import { CharacterModel } from './CharacterModel.js?v=202603311420';
+import { AnimationController } from './AnimationController.js?v=202603311420';
 
 const JUMP_VELOCITY = 12;
 const GRAVITY = -30;
 const SLIDE_DURATION = 0.8;
 
 export class PlayerController {
-    constructor(scene, textureGen) {
+    constructor(scene, textureGen, characterId) {
         this.scene = scene;
         this.textureGen = textureGen;
         this.characterModel = new CharacterModel();
@@ -31,12 +31,12 @@ export class PlayerController {
         this.alive = true;
         this.modelReady = false;
 
-        this._loadCharacter();
+        this._loadCharacter(characterId || 'runner');
     }
 
-    async _loadCharacter() {
+    async _loadCharacter(characterId = 'runner') {
         try {
-            await this.characterModel.load(this.scene, this.textureGen);
+            await this.characterModel.load(this.scene, this.textureGen, characterId);
             this.animController = new AnimationController(this.characterModel);
             this.animController.transitionTo('Idle', 0);
             this.modelReady = true;
@@ -118,6 +118,15 @@ export class PlayerController {
             this.fallbackMesh.position.x = this.position.x;
             this.fallbackMesh.position.y = this.position.y + (this.isSliding ? 0.45 : 0.9);
             this.fallbackMesh.scale.y = this.isSliding ? 0.5 : 1.0;
+        }
+    }
+
+    /** 切换角色皮肤 */
+    async switchCharacter(characterId) {
+        if (!this.modelReady || !this.characterModel.mesh) return;
+        // 重新上色
+        if (this.textureGen) {
+            this.textureGen.applyCharacterSkin(this.characterModel.mesh, characterId);
         }
     }
 

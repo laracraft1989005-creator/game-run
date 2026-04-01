@@ -1,24 +1,24 @@
 import * as THREE from 'three';
-import { createRenderer, createCamera, createScene, setupResize } from '../rendering/SceneSetup.js?v=20260331r2';
-import { LightingRig } from '../rendering/LightingRig.js?v=20260331r2';
-import { SkyController } from '../rendering/SkyController.js?v=20260331r2';
-import { CameraController } from '../rendering/CameraController.js?v=20260331r2';
-import { InputManager } from './InputManager.js?v=20260331r2';
-import { AssetManager } from './AssetManager.js?v=20260331r2';
-import { TextureGenerator } from '../rendering/TextureGenerator.js?v=20260331r2';
-import { PlayerController } from '../player/PlayerController.js?v=20260331r2';
-import { CollisionDetector } from '../player/CollisionDetector.js?v=20260331r2';
-import { ChunkManager } from '../world/ChunkManager.js?v=20260331r2';
-import { ScoreManager } from '../gameplay/ScoreManager.js?v=20260331r2';
-import { DifficultyManager } from '../gameplay/DifficultyManager.js?v=20260331r2';
-import { ParticleSystem } from '../effects/ParticleSystem.js?v=20260331r2';
-import { SpeedLines } from '../effects/SpeedLines.js?v=20260331r2';
-import { PostProcessing } from '../rendering/PostProcessing.js?v=20260331r2';
-import { SoundManager } from './SoundManager.js?v=20260331r2';
-import { UIManager } from './UIManager.js?v=20260331r2';
-import { CoinSystem } from '../gameplay/CoinSystem.js?v=20260331r2';
-import { PowerUpSystem } from '../gameplay/PowerUpSystem.js?v=20260331r2';
-import { ThemeManager, THEME_CONFIGS } from '../rendering/ThemeManager.js?v=20260331r2';
+import { createRenderer, createCamera, createScene, setupResize } from '../rendering/SceneSetup.js?v=202603311420';
+import { LightingRig } from '../rendering/LightingRig.js?v=202603311420';
+import { SkyController } from '../rendering/SkyController.js?v=202603311420';
+import { CameraController } from '../rendering/CameraController.js?v=202603311420';
+import { InputManager } from './InputManager.js?v=202603311420';
+import { AssetManager } from './AssetManager.js?v=202603311420';
+import { TextureGenerator } from '../rendering/TextureGenerator.js?v=202603311420';
+import { PlayerController } from '../player/PlayerController.js?v=202603311420';
+import { CollisionDetector } from '../player/CollisionDetector.js?v=202603311420';
+import { ChunkManager } from '../world/ChunkManager.js?v=202603311420';
+import { ScoreManager } from '../gameplay/ScoreManager.js?v=202603311420';
+import { DifficultyManager } from '../gameplay/DifficultyManager.js?v=202603311420';
+import { ParticleSystem } from '../effects/ParticleSystem.js?v=202603311420';
+import { SpeedLines } from '../effects/SpeedLines.js?v=202603311420';
+import { PostProcessing } from '../rendering/PostProcessing.js?v=202603311420';
+import { SoundManager } from './SoundManager.js?v=202603311420';
+import { UIManager } from './UIManager.js?v=202603311420';
+import { CoinSystem } from '../gameplay/CoinSystem.js?v=202603311420';
+import { PowerUpSystem } from '../gameplay/PowerUpSystem.js?v=202603311420';
+import { ThemeManager, THEME_CONFIGS } from '../rendering/ThemeManager.js?v=202603311420';
 
 const STATE = { MENU: 'menu', COUNTDOWN: 'countdown', PLAYING: 'playing', GAME_OVER: 'gameover' };
 
@@ -40,7 +40,8 @@ export class Game {
         this.lighting = new LightingRig(this.scene);
         this.sky = new SkyController(this.scene);
         this.cameraCtrl = new CameraController(this.camera);
-        this.player = new PlayerController(this.scene, this.textureGen);
+        this._selectedCharacter = localStorage.getItem('cityRunnerChar') || 'runner';
+        this.player = new PlayerController(this.scene, this.textureGen, this._selectedCharacter);
         this.collision = new CollisionDetector();
         this.score = new ScoreManager();
         this.difficulty = new DifficultyManager();
@@ -80,6 +81,24 @@ export class Game {
             this.sound.unlock();
             this.sound.playUIClick();
             this._startCountdown();
+        });
+
+        // 角色选择 UI
+        document.querySelectorAll('.char-btn').forEach(btn => {
+            if (btn.dataset.char === this._selectedCharacter) {
+                btn.classList.add('selected');
+            } else {
+                btn.classList.remove('selected');
+            }
+            btn.addEventListener('click', () => {
+                this.sound.unlock();
+                this.sound.playUIClick();
+                document.querySelectorAll('.char-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                this._selectedCharacter = btn.dataset.char;
+                localStorage.setItem('cityRunnerChar', this._selectedCharacter);
+                this.player.switchCharacter(this._selectedCharacter);
+            });
         });
 
         // 静音按钮

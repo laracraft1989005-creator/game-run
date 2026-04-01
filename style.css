@@ -89,6 +89,49 @@ body {
     transform: scale(0.97);
 }
 
+/* 角色选择 */
+.char-picker {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.char-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: rgba(255,255,255,0.7);
+    background: rgba(255,255,255,0.08);
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.char-btn:hover {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+}
+
+.char-btn.selected {
+    background: rgba(255,255,255,0.15);
+    border-color: #FFD700;
+    color: #fff;
+    box-shadow: 0 0 12px rgba(255,215,0,0.3);
+}
+
+.char-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
 .controls-hint {
     margin-top: 2rem;
     color: rgba(255,255,255,0.5);
@@ -447,6 +490,8 @@ body {
     #menu .subtitle { font-size: 0.9rem; }
     .btn { padding: 12px 36px; font-size: 1.1rem; }
     .controls-hint { font-size: 0.75rem; padding: 0 16px; }
+    .char-picker { gap: 6px; }
+    .char-btn { padding: 6px 10px; font-size: 0.75rem; }
     .hud-score { font-size: 1.8rem; }
     .hud-distance { font-size: 0.85rem; }
     .milestone-popup { font-size: 1.6rem; }

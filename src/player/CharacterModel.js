@@ -9,7 +9,7 @@ export class CharacterModel {
         this.ready = false;
     }
 
-    async load(scene, textureGen) {
+    async load(scene, textureGen, characterId = 'runner') {
         const loader = new GLTFLoader();
         const gltf = await loader.loadAsync('assets/characters/base/character.glb');
 
@@ -27,7 +27,7 @@ export class CharacterModel {
 
         // 应用角色贴图
         if (textureGen) {
-            textureGen.applyCharacterSkin(this.mesh);
+            textureGen.applyCharacterSkin(this.mesh, characterId);
         }
 
         scene.add(this.mesh);
