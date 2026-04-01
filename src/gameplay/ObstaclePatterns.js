@@ -41,10 +41,18 @@ function corridor() {
     ];
 }
 
+function moving() {
+    // 单个左右移动的障碍
+    const lane = Math.floor(Math.random() * 3);
+    const type = Math.random() < 0.3 ? 'low' : 'full';
+    return [{ lane, type, zOffset: 0, moving: true }];
+}
+
 const PATTERNS = [
     { name: 'random', fn: random, minDifficulty: 0 },
     { name: 'wall', fn: wall, minDifficulty: 0.2 },
     { name: 'gap', fn: gap, minDifficulty: 0.3 },
+    { name: 'moving', fn: moving, minDifficulty: 0.35 },
     { name: 'zigzag', fn: zigzag, minDifficulty: 0.4 },
     { name: 'corridor', fn: corridor, minDifficulty: 0.5 },
 ];

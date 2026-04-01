@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { LANES, LANE_SWITCH_SPEED } from '../world/LaneConfig.js?v=202604010900';
-import { CharacterModel } from './CharacterModel.js?v=202604010900';
-import { AnimationController } from './AnimationController.js?v=202604010900';
+import { LANES, LANE_SWITCH_SPEED } from '../world/LaneConfig.js?v=202604011200';
+import { CharacterModel } from './CharacterModel.js?v=202604011200';
+import { AnimationController } from './AnimationController.js?v=202604011200';
 
 const JUMP_VELOCITY = 12;
 const GRAVITY = -30;
@@ -29,6 +29,8 @@ export class PlayerController {
         this.isSliding = false;
         this.slideTimer = 0;
         this.alive = true;
+        this.invulnerable = false;
+        this.invulnerableTimer = 0;
         this.modelReady = false;
 
         this._loadCharacter(characterId || 'runner');
@@ -67,6 +69,15 @@ export class PlayerController {
 
     update(dt, speed) {
         if (!this.alive) return;
+
+        // 无敌计时
+        if (this.invulnerableTimer > 0) {
+            this.invulnerableTimer -= dt;
+            if (this.invulnerableTimer <= 0) {
+                this.invulnerable = false;
+                this.invulnerableTimer = 0;
+            }
+        }
 
         // 车道切换
         const targetX = LANES[this.laneIndex];
@@ -130,6 +141,21 @@ export class PlayerController {
         }
     }
 
+    /** 弹射板超级跳 */
+    applyJumpBoost(multiplier = 2) {
+        if (!this.alive || !this.isGrounded) return false;
+        this.velocityY = JUMP_VELOCITY * multiplier;
+        this.isGrounded = false;
+        if (this.animController) this.animController.transitionTo('Jump', 0.1);
+        return true;
+    }
+
+    /** 设置无敌状态 */
+    setInvulnerable(duration) {
+        this.invulnerable = true;
+        this.invulnerableTimer = duration;
+    }
+
     die() {
         this.alive = false;
         if (this.animController) this.animController.transitionTo('Death', 0.2);
@@ -143,6 +169,8 @@ export class PlayerController {
         this.isSliding = false;
         this.slideTimer = 0;
         this.alive = true;
+        this.invulnerable = false;
+        this.invulnerableTimer = 0;
         if (this.modelReady) {
             this.characterModel.setPosition(0, 0, 0);
             this.characterModel.setScaleY(1);

@@ -9,6 +9,8 @@ export class CameraController {
         this.shakeIntensity = 0;
         this.baseFov = 60;
         this.maxFov = 75;
+        this._fovBoostTimer = 0;
+        this._fovBoostAmount = 0;
     }
 
     update(dt, playerPos, speed, minSpeed, maxSpeed) {
@@ -23,7 +25,19 @@ export class CameraController {
 
         // 动态 FOV
         const t = Math.min(1, (speed - minSpeed) / (maxSpeed - minSpeed));
-        this.camera.fov = THREE.MathUtils.lerp(this.baseFov, this.maxFov, t);
+        let fov = THREE.MathUtils.lerp(this.baseFov, this.maxFov, t);
+
+        // 加速带 FOV 加成
+        if (this._fovBoostTimer > 0) {
+            this._fovBoostTimer -= dt;
+            const boostT = Math.min(1, this._fovBoostTimer * 2);
+            fov += this._fovBoostAmount * boostT;
+            if (this._fovBoostTimer <= 0) {
+                this._fovBoostAmount = 0;
+            }
+        }
+
+        this.camera.fov = fov;
         this.camera.updateProjectionMatrix();
 
         // 震动衰减
@@ -36,5 +50,10 @@ export class CameraController {
 
     shake(intensity = 0.5) {
         this.shakeIntensity = intensity;
+    }
+
+    applyFovBoost(amount, duration) {
+        this._fovBoostAmount = amount;
+        this._fovBoostTimer = duration;
     }
 }

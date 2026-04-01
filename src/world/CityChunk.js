@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { CHUNK_LENGTH, ROAD_WIDTH, LANES } from './LaneConfig.js?v=202604010900';
-import { selectPattern } from '../gameplay/ObstaclePatterns.js?v=202604010900';
+import { CHUNK_LENGTH, ROAD_WIDTH, LANES } from './LaneConfig.js?v=202604011200';
+import { selectPattern } from '../gameplay/ObstaclePatterns.js?v=202604011200';
 
 // 程序化兜底用的颜色
 const BUILDING_COLORS = [0x6688AA, 0x7799BB, 0x5577AA, 0x8899BB, 0x6677CC, 0x9988AA];
@@ -19,6 +19,8 @@ export class CityChunk {
         this.obstacles = [];
         this.coins = [];
         this.powerUp = null;
+        this.jumpPads = [];
+        this.speedZones = [];
         this.buildings = [];
         this.props = [];
         this.roadMeshes = [];
@@ -298,7 +300,7 @@ export class CityChunk {
 
     // ─── 障碍物系统 ─────────────────────────────────
 
-    generate(zPos, difficulty, coinSystem, powerUpSystem, themeWorldConfig) {
+    generate(zPos, difficulty, coinSystem, powerUpSystem, themeWorldConfig, interactableOpts = {}) {
         this.group.position.z = zPos;
         this.active = true;
         this._themeConfig = themeWorldConfig || null;
@@ -316,8 +318,10 @@ export class CityChunk {
         }
         this.obstacles = [];
 
-        // 清除旧金币 & 道具
+        // 清除旧金币 & 道具 & 交互物
         this._clearPickups(coinSystem, powerUpSystem);
+        this._clearJumpPads();
+        this._clearSpeedZones();
 
         // 生成障碍（使用 pattern 系统）
         const count = 2 + Math.floor(difficulty * 3);
@@ -331,7 +335,7 @@ export class CityChunk {
             for (const entry of entries) {
                 const z = Math.max(-CHUNK_LENGTH / 2 + 1,
                     Math.min(CHUNK_LENGTH / 2 - 1, slotZ + (entry.zOffset || 0)));
-                const obs = this._createObstacle(entry.type, entry.lane, z);
+                const obs = this._createObstacle(entry.type, entry.lane, z, entry.moving || false);
                 this.obstacles.push(obs);
             }
         }
@@ -344,6 +348,16 @@ export class CityChunk {
         // 生成道具
         if (powerUpSystem) {
             this.powerUp = powerUpSystem.createForChunk(this.group, difficulty);
+        }
+
+        // 生成弹射板
+        if (interactableOpts.spawnJumpPad) {
+            this._createJumpPad();
+        }
+
+        // 生成加速带
+        if (interactableOpts.spawnSpeedZone) {
+            this._createSpeedZone();
         }
     }
 
@@ -358,7 +372,7 @@ export class CityChunk {
         this.powerUp = null;
     }
 
-    _createObstacle(type, lane, z) {
+    _createObstacle(type, lane, z, moving = false) {
         const dims = COLLISION_DIMS[type];
         let mesh;
 
@@ -369,17 +383,14 @@ export class CityChunk {
 
         if (modelResult) {
             mesh = modelResult.model;
-            // 缩放模型到与碰撞盒大致匹配
             const bbox = new THREE.Box3().setFromObject(mesh);
             const size = bbox.getSize(new THREE.Vector3());
             const targetScale = dims.w / Math.max(size.x, size.z, 0.01);
             mesh.scale.setScalar(targetScale);
-            // 重新计算缩放后的底部偏移
             const scaledBbox = new THREE.Box3().setFromObject(mesh);
             const scaledSize = scaledBbox.getSize(new THREE.Vector3());
             mesh.position.set(LANES[lane], scaledSize.y / 2, z);
         } else {
-            // 兜底: 贴图方块
             let geo, fallbackColor, texKey, emissive;
             if (type === 'low') {
                 geo = new THREE.BoxGeometry(2, 1, 1);
@@ -403,10 +414,29 @@ export class CityChunk {
         mesh.castShadow = true;
         this.group.add(mesh);
 
-        // 碰撞盒: 固定尺寸，与视觉解耦
         const box = new THREE.Box3();
+        const obs = { mesh, box, type, active: true, lane, dims, moving: false };
 
-        return { mesh, box, type, active: true, lane, dims };
+        // 移动障碍：附加运动参数 + 箭头指示
+        if (moving) {
+            obs.moving = true;
+            obs.originX = LANES[lane];
+            obs.movePhase = Math.random() * Math.PI * 2;
+            obs.moveSpeed = 2.0 + Math.random() * 1.0;
+            obs.moveAmplitude = 3.0; // 一个车道宽度
+            // 绿色箭头指示器
+            const arrowGeo = new THREE.ConeGeometry(0.3, 0.6, 4);
+            arrowGeo.rotateZ(Math.PI / 2);
+            const arrowMat = new THREE.MeshStandardMaterial({
+                color: 0xAAFF00, emissive: 0x66AA00, emissiveIntensity: 0.8,
+                transparent: true, opacity: 0.9,
+            });
+            obs.arrowMesh = new THREE.Mesh(arrowGeo, arrowMat);
+            obs.arrowMesh.position.y = dims.h + 0.5;
+            mesh.add(obs.arrowMesh);
+        }
+
+        return obs;
     }
 
     updateCollisionBoxes() {
@@ -422,8 +452,121 @@ export class CityChunk {
         }
     }
 
+    // ─── 移动障碍 ─────────────────────────────────
+
+    updateMovingObstacles(dt, difficulty) {
+        for (const obs of this.obstacles) {
+            if (!obs.active || !obs.moving) continue;
+            const speed = obs.moveSpeed * (1 + difficulty * 0.5);
+            obs.movePhase += speed * dt;
+            obs.mesh.position.x = obs.originX + Math.sin(obs.movePhase) * obs.moveAmplitude;
+            if (obs.arrowMesh) {
+                obs.arrowMesh.scale.x = Math.cos(obs.movePhase) >= 0 ? 1 : -1;
+            }
+        }
+    }
+
+    // ─── 弹射板 ─────────────────────────────────
+
+    _createJumpPad() {
+        const lane = Math.floor(Math.random() * 3);
+        const z = -5 + Math.random() * 10;
+
+        const geo = new THREE.BoxGeometry(2.0, 0.15, 1.5);
+        const mat = new THREE.MeshStandardMaterial({
+            color: 0x44FF44, emissive: 0x22AA22, emissiveIntensity: 0.8,
+            transparent: true, opacity: 0.85,
+        });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(LANES[lane], 0.075, z);
+        mesh.receiveShadow = true;
+        this.group.add(mesh);
+
+        // 向上箭头指示
+        const arrowGeo = new THREE.ConeGeometry(0.25, 0.4, 3);
+        const arrowMat = new THREE.MeshStandardMaterial({
+            color: 0xAAFFAA, emissive: 0x88FF88, emissiveIntensity: 1.0,
+        });
+        for (let i = -1; i <= 1; i += 2) {
+            const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+            arrow.position.set(i * 0.5, 0.3, 0);
+            mesh.add(arrow);
+        }
+
+        this.jumpPads.push({ mesh, box: new THREE.Box3(), active: true, triggered: false });
+    }
+
+    _clearJumpPads() {
+        for (const jp of this.jumpPads) {
+            this.group.remove(jp.mesh);
+            jp.mesh.traverse(c => { if (c.isMesh) c.geometry.dispose(); });
+        }
+        this.jumpPads = [];
+    }
+
+    updateJumpPadBoxes() {
+        const worldPos = new THREE.Vector3();
+        for (const jp of this.jumpPads) {
+            if (!jp.active) continue;
+            jp.mesh.getWorldPosition(worldPos);
+            jp.box.setFromCenterAndSize(worldPos, new THREE.Vector3(2.0, 0.5, 1.5));
+        }
+    }
+
+    // ─── 加速带 ─────────────────────────────────
+
+    _createSpeedZone() {
+        const lane = Math.floor(Math.random() * 3);
+        const z = -10 + Math.random() * 20;
+
+        const geo = new THREE.BoxGeometry(2.0, 0.05, 3.0);
+        const mat = new THREE.MeshStandardMaterial({
+            color: 0xFFAA00, emissive: 0xFF6600, emissiveIntensity: 0.6,
+            transparent: true, opacity: 0.8,
+        });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(LANES[lane], 0.03, z);
+        this.group.add(mesh);
+
+        // 前进箭头
+        const chevGeo = new THREE.ConeGeometry(0.3, 0.5, 3);
+        chevGeo.rotateX(-Math.PI / 2);
+        const chevMat = new THREE.MeshStandardMaterial({
+            color: 0xFFFF00, emissive: 0xFFAA00, emissiveIntensity: 1.0,
+            transparent: true, opacity: 0.7,
+        });
+        for (let i = -1; i <= 1; i++) {
+            const chev = new THREE.Mesh(chevGeo, chevMat);
+            chev.position.set(0, 0.1, i * 0.8);
+            mesh.add(chev);
+        }
+
+        this.speedZones.push({ mesh, box: new THREE.Box3(), active: true });
+    }
+
+    _clearSpeedZones() {
+        for (const sz of this.speedZones) {
+            this.group.remove(sz.mesh);
+            sz.mesh.traverse(c => { if (c.isMesh) c.geometry.dispose(); });
+        }
+        this.speedZones = [];
+    }
+
+    updateSpeedZoneBoxes() {
+        const worldPos = new THREE.Vector3();
+        for (const sz of this.speedZones) {
+            if (!sz.active) continue;
+            sz.mesh.getWorldPosition(worldPos);
+            sz.box.setFromCenterAndSize(worldPos, new THREE.Vector3(2.0, 0.5, 3.0));
+        }
+    }
+
+    // ─── 回收 ─────────────────────────────────
+
     recycle(coinSystem, powerUpSystem) {
         this.active = false;
         this._clearPickups(coinSystem, powerUpSystem);
+        this._clearJumpPads();
+        this._clearSpeedZones();
     }
 }

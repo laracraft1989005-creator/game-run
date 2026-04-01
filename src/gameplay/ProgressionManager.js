@@ -12,6 +12,7 @@ export class ProgressionManager {
         cyber: 800,
         nature: 1200,
         royal: 2000,
+        girl: 1500,
     };
 
     static UPGRADE_COSTS = {

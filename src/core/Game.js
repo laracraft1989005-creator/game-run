@@ -1,25 +1,25 @@
 import * as THREE from 'three';
-import { createRenderer, createCamera, createScene, setupResize } from '../rendering/SceneSetup.js?v=202604010900';
-import { LightingRig } from '../rendering/LightingRig.js?v=202604010900';
-import { SkyController } from '../rendering/SkyController.js?v=202604010900';
-import { CameraController } from '../rendering/CameraController.js?v=202604010900';
-import { InputManager } from './InputManager.js?v=202604010900';
-import { AssetManager } from './AssetManager.js?v=202604010900';
-import { TextureGenerator } from '../rendering/TextureGenerator.js?v=202604010900';
-import { PlayerController } from '../player/PlayerController.js?v=202604010900';
-import { CollisionDetector } from '../player/CollisionDetector.js?v=202604010900';
-import { ChunkManager } from '../world/ChunkManager.js?v=202604010900';
-import { ScoreManager } from '../gameplay/ScoreManager.js?v=202604010900';
-import { DifficultyManager } from '../gameplay/DifficultyManager.js?v=202604010900';
-import { ParticleSystem } from '../effects/ParticleSystem.js?v=202604010900';
-import { SpeedLines } from '../effects/SpeedLines.js?v=202604010900';
-import { PostProcessing } from '../rendering/PostProcessing.js?v=202604010900';
-import { SoundManager } from './SoundManager.js?v=202604010900';
-import { UIManager } from './UIManager.js?v=202604010900';
-import { CoinSystem } from '../gameplay/CoinSystem.js?v=202604010900';
-import { PowerUpSystem } from '../gameplay/PowerUpSystem.js?v=202604010900';
-import { ThemeManager, THEME_CONFIGS } from '../rendering/ThemeManager.js?v=202604010900';
-import { ProgressionManager } from '../gameplay/ProgressionManager.js?v=202604010900';
+import { createRenderer, createCamera, createScene, setupResize } from '../rendering/SceneSetup.js?v=202604011200';
+import { LightingRig } from '../rendering/LightingRig.js?v=202604011200';
+import { SkyController } from '../rendering/SkyController.js?v=202604011200';
+import { CameraController } from '../rendering/CameraController.js?v=202604011200';
+import { InputManager } from './InputManager.js?v=202604011200';
+import { AssetManager } from './AssetManager.js?v=202604011200';
+import { TextureGenerator } from '../rendering/TextureGenerator.js?v=202604011200';
+import { PlayerController } from '../player/PlayerController.js?v=202604011200';
+import { CollisionDetector } from '../player/CollisionDetector.js?v=202604011200';
+import { ChunkManager } from '../world/ChunkManager.js?v=202604011200';
+import { ScoreManager } from '../gameplay/ScoreManager.js?v=202604011200';
+import { DifficultyManager } from '../gameplay/DifficultyManager.js?v=202604011200';
+import { ParticleSystem } from '../effects/ParticleSystem.js?v=202604011200';
+import { SpeedLines } from '../effects/SpeedLines.js?v=202604011200';
+import { PostProcessing } from '../rendering/PostProcessing.js?v=202604011200';
+import { SoundManager } from './SoundManager.js?v=202604011200';
+import { UIManager } from './UIManager.js?v=202604011200';
+import { CoinSystem } from '../gameplay/CoinSystem.js?v=202604011200';
+import { PowerUpSystem } from '../gameplay/PowerUpSystem.js?v=202604011200';
+import { ThemeManager, THEME_CONFIGS } from '../rendering/ThemeManager.js?v=202604011200';
+import { ProgressionManager } from '../gameplay/ProgressionManager.js?v=202604011200';
 
 const STATE = { MENU: 'menu', COUNTDOWN: 'countdown', PLAYING: 'playing', GAME_OVER: 'gameover' };
 
@@ -348,7 +348,7 @@ export class Game {
 
         // 分块管理
         const worldConfig = this.themeManager ? this.themeManager.getWorldConfig() : null;
-        this.chunks.update(this.worldOffset, this.difficulty.getDifficulty(), worldConfig);
+        this.chunks.update(this.worldOffset, this.difficulty.getDifficulty(), worldConfig, dt);
 
         // 金币动画（自旋 + 浮动）
         this.coinSystem.update(dt, this.chunks.chunks);
@@ -358,17 +358,47 @@ export class Game {
 
         // ─── 碰撞检测 ───
 
-        // 障碍物碰撞 (带护盾拦截)
+        // 弹射板交互
+        const jumpPads = this.chunks.getActiveJumpPads();
+        const touchedPads = this.collision.checkInteractables(
+            this.player.position, this.player.isSliding, jumpPads
+        );
+        for (const pad of touchedPads) {
+            if (this.player.isGrounded && !pad.triggered) {
+                pad.triggered = true;
+                if (this.player.applyJumpBoost(2)) {
+                    this.player.setInvulnerable(0.5);
+                    if (this.particles) this.particles.triggerJumpPadBurst(this.player.position);
+                    this.sound.playJumpPad();
+                }
+            }
+            if (!this.player.isGrounded) pad.triggered = false;
+        }
+
+        // 加速带交互
+        const speedZones = this.chunks.getActiveSpeedZones();
+        const touchedZones = this.collision.checkInteractables(
+            this.player.position, this.player.isSliding, speedZones
+        );
+        if (touchedZones.length > 0 && !this.difficulty.isSpeedBoosted()) {
+            this.difficulty.applySpeedBoost(1.5, 3.0);
+            this.cameraCtrl.applyFovBoost(10, 3.0);
+            this.sound.playSpeedZone();
+            this.ui.showPowerUp('speedBoost', 3.0, '加速');
+        }
+
+        // 障碍物碰撞 (带无敌/护盾拦截)
         const obstacles = this.chunks.getActiveObstacles();
         const hit = this.collision.check(this.player.position, this.player.isSliding, obstacles);
         if (hit) {
-            if (this.powerUpSystem.isShieldActive()) {
-                // 护盾吸收碰撞
+            if (this.player.invulnerable) {
+                hit.active = false;
+            } else if (this.powerUpSystem.isShieldActive()) {
                 this.powerUpSystem.breakShield();
                 this.sound.playShieldBreak();
                 this.ui.hidePowerUp();
                 this.cameraCtrl.shake(0.3);
-                hit.active = false; // 让玩家穿过
+                hit.active = false;
             } else {
                 this.player.die();
                 if (this.particles) this.particles.triggerExplosion(this.player.position);

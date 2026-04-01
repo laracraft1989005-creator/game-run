@@ -23,6 +23,19 @@ export class CollisionDetector {
         return null;
     }
 
+    /** 检测非消耗型交互物（弹射板/加速带），返回所有碰到的 */
+    checkInteractables(playerPos, isSliding, items) {
+        this._updatePlayerBox(playerPos, isSliding);
+        const touched = [];
+        for (const item of items) {
+            if (!item.active) continue;
+            if (this.playerBox.intersectsBox(item.box)) {
+                touched.push(item);
+            }
+        }
+        return touched;
+    }
+
     /** 检测拾取物（金币/道具），返回所有碰到的 */
     checkPickups(playerPos, isSliding, items) {
         this._updatePlayerBox(playerPos, isSliding);

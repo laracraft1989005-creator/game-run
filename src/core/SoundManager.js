@@ -273,6 +273,18 @@ export class SoundManager {
         this._tone(2000, 0.05, 'square', 0.15);
     }
 
+    playJumpPad() {
+        if (!this.audioCtx) return;
+        this._sweep(200, 1600, 0.2, 'sine', 0.3);
+        this._sweep(150, 1200, 0.25, 'triangle', 0.15);
+    }
+
+    playSpeedZone() {
+        if (!this.audioCtx) return;
+        this._sweep(300, 900, 0.25, 'sawtooth', 0.2);
+        this._noise(0.15, 3000, 0.15);
+    }
+
     /* ─── 脚步声 ─── */
 
     updateFootsteps(speed) {

@@ -69,6 +69,7 @@ export class TextureGenerator {
         { id: 'cyber',   name: '赛博',  skin: '#C8D8E8', body: '#1a1a2e', stripe: '#00FFFF', pants: '#0a0a1e', emissive: 0x002233 },
         { id: 'nature',  name: '森林',  skin: '#E8C89A', body: '#226633', stripe: '#88FF44', pants: '#223322', emissive: 0x112211 },
         { id: 'royal',   name: '皇家',  skin: '#F0C8A0', body: '#6622AA', stripe: '#FFD700', pants: '#332244', emissive: 0x221133 },
+        { id: 'girl',    name: '女孩',  skin: '#F5D5C0', body: '#FF69B4', stripe: '#FFB6C1', pants: '#4A0028', emissive: 0x331122, hair: '#8B4513' },
     ];
 
     /** 给角色模型上色（按角色 ID） */
@@ -81,7 +82,7 @@ export class TextureGenerator {
 
         if (!this.cache.has(skinKey)) {
             this.cache.set(skinKey, this._generateCharSkin(skinDef.skin));
-            this.cache.set(outfitKey, this._generateCharOutfit(skinDef.body, skinDef.stripe, skinDef.pants));
+            this.cache.set(outfitKey, this._generateCharOutfit(skinDef.body, skinDef.stripe, skinDef.pants, skinDef.hair));
         }
         const skinTex = this.cache.get(skinKey);
         const outfitTex = this.cache.get(outfitKey);
@@ -428,7 +429,7 @@ export class TextureGenerator {
         return this._toTexture(ctx, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping);
     }
 
-    _generateCharOutfit(bodyHex = '#2244AA', stripeHex = '#44FFAA', pantsHex = '#333344') {
+    _generateCharOutfit(bodyHex = '#2244AA', stripeHex = '#44FFAA', pantsHex = '#333344', hairHex = null) {
         const W = 256, H = 256;
         const ctx = this._ctx(W, H);
         ctx.fillStyle = bodyHex;
@@ -462,6 +463,23 @@ export class TextureGenerator {
                 ctx.fillRect(x, y, 2, 2);
             }
         }
+        // 头发色带（girl 皮肤使用）
+        if (hairHex) {
+            const hairH = Math.floor(H * 0.08);
+            ctx.fillStyle = hairHex;
+            ctx.fillRect(0, 0, W, hairH);
+            const hR = parseInt(hairHex.slice(1, 3), 16);
+            const hG = parseInt(hairHex.slice(3, 5), 16);
+            const hB = parseInt(hairHex.slice(5, 7), 16);
+            for (let y = 0; y < hairH; y += 2) {
+                for (let x = 0; x < W; x += 2) {
+                    const v = Math.random() * 15 - 7;
+                    ctx.fillStyle = `rgba(${Math.max(0, hR + v)},${Math.max(0, hG + v)},${Math.max(0, hB + v)},0.3)`;
+                    ctx.fillRect(x, y, 2, 2);
+                }
+            }
+        }
+
         return this._toTexture(ctx, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping);
     }
 

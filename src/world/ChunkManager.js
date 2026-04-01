@@ -1,5 +1,5 @@
-import { CityChunk } from './CityChunk.js?v=202604010900';
-import { CHUNK_LENGTH } from './LaneConfig.js?v=202604010900';
+import { CityChunk } from './CityChunk.js?v=202604011200';
+import { CHUNK_LENGTH } from './LaneConfig.js?v=202604011200';
 
 const VISIBLE_DISTANCE = 160;
 const RECYCLE_DISTANCE = 40;
@@ -18,6 +18,10 @@ export class ChunkManager {
         this.coinSystem = null;
         this.powerUpSystem = null;
 
+        // 交互物生成计数
+        this._chunksSinceJumpPad = 0;
+        this._chunksSinceSpeedZone = 0;
+
         // 预创建分块池
         for (let i = 0; i < POOL_SIZE; i++) {
             this.pool.push(new CityChunk(scene, assetManager, textureGen));
@@ -31,20 +35,28 @@ export class ChunkManager {
             this.pool.push(chunk);
         }
         this.chunks = [];
-        this.nextChunkZ = CHUNK_LENGTH; // 从玩家前面一点开始
+        this.nextChunkZ = CHUNK_LENGTH;
+        this._chunksSinceJumpPad = 0;
+        this._chunksSinceSpeedZone = 0;
     }
 
-    update(worldOffset, difficulty, themeWorldConfig) {
-        // 向前生成 (nextChunkZ 已跟随 scrollWorld 同步滚动，直接比较屏幕空间)
+    update(worldOffset, difficulty, themeWorldConfig, dt = 0) {
+        // 向前生成
         while (this.nextChunkZ > -VISIBLE_DISTANCE) {
             const chunk = this._getChunk();
             chunk.group.visible = true;
-            chunk.generate(this.nextChunkZ, difficulty, this.coinSystem, this.powerUpSystem, themeWorldConfig);
+
+            const interactableOpts = {
+                spawnJumpPad: this._shouldSpawnJumpPad(),
+                spawnSpeedZone: this._shouldSpawnSpeedZone(difficulty),
+            };
+
+            chunk.generate(this.nextChunkZ, difficulty, this.coinSystem, this.powerUpSystem, themeWorldConfig, interactableOpts);
             this.chunks.push(chunk);
             this.nextChunkZ -= CHUNK_LENGTH;
         }
 
-        // 回收后方 (position.z 已包含滚动偏移，无需再加 worldOffset)
+        // 回收后方
         for (let i = this.chunks.length - 1; i >= 0; i--) {
             if (this.chunks[i].group.position.z > RECYCLE_DISTANCE) {
                 const chunk = this.chunks.splice(i, 1)[0];
@@ -54,15 +66,17 @@ export class ChunkManager {
             }
         }
 
-        // 更新碰撞盒 + 阴影纪律: 仅近处 chunk 投射阴影
+        // 更新碰撞盒 + 移动障碍 + 交互物
         for (const chunk of this.chunks) {
+            // 移动障碍必须在碰撞盒更新之前
+            chunk.updateMovingObstacles(dt, difficulty);
             chunk.updateCollisionBoxes();
+            chunk.updateJumpPadBoxes();
+            chunk.updateSpeedZoneBoxes();
 
-            // 金币碰撞盒
             if (this.coinSystem) {
                 this.coinSystem.updateCollisionBoxes(chunk.coins);
             }
-            // 道具碰撞盒
             if (this.powerUpSystem) {
                 this.powerUpSystem.updateCollisionBox(chunk.powerUp);
             }
@@ -81,7 +95,6 @@ export class ChunkManager {
         for (const chunk of this.chunks) {
             chunk.group.position.z += dz;
         }
-        // nextChunkZ 也跟随滚动，保持屏幕空间一致性
         this.nextChunkZ += dz;
     }
 
@@ -113,6 +126,45 @@ export class ChunkManager {
             }
         }
         return all;
+    }
+
+    getActiveJumpPads() {
+        const all = [];
+        for (const chunk of this.chunks) {
+            for (const jp of chunk.jumpPads) {
+                if (jp.active) all.push(jp);
+            }
+        }
+        return all;
+    }
+
+    getActiveSpeedZones() {
+        const all = [];
+        for (const chunk of this.chunks) {
+            for (const sz of chunk.speedZones) {
+                if (sz.active) all.push(sz);
+            }
+        }
+        return all;
+    }
+
+    _shouldSpawnJumpPad() {
+        this._chunksSinceJumpPad++;
+        if (this._chunksSinceJumpPad >= 4 + Math.floor(Math.random() * 3)) {
+            this._chunksSinceJumpPad = 0;
+            return true;
+        }
+        return false;
+    }
+
+    _shouldSpawnSpeedZone(difficulty) {
+        if (difficulty < 0.2) return false;
+        this._chunksSinceSpeedZone++;
+        if (this._chunksSinceSpeedZone >= 3 + Math.floor(Math.random() * 3)) {
+            this._chunksSinceSpeedZone = 0;
+            return true;
+        }
+        return false;
     }
 
     _getChunk() {

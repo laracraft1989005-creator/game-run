@@ -2,8 +2,8 @@
  * UIManager — 集中管理所有 DOM 操作、过渡动画、分数动画
  */
 
-import { ProgressionManager } from '../gameplay/ProgressionManager.js?v=202604010900';
-import { TextureGenerator } from '../rendering/TextureGenerator.js?v=202604010900';
+import { ProgressionManager } from '../gameplay/ProgressionManager.js?v=202604011200';
+import { TextureGenerator } from '../rendering/TextureGenerator.js?v=202604011200';
 
 export class UIManager {
     constructor() {
@@ -316,7 +316,7 @@ export class UIManager {
         const skins = TextureGenerator.CHARACTER_SKINS;
         const SKIN_COLORS = {
             runner: '#2244AA', fire: '#CC2222', cyber: '#00FFFF',
-            nature: '#226633', royal: '#6622AA',
+            nature: '#226633', royal: '#6622AA', girl: '#FF69B4',
         };
 
         for (const skin of skins) {

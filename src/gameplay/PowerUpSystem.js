@@ -3,7 +3,7 @@
  * 三种道具: shield / magnet / scoreMultiplier
  */
 import * as THREE from 'three';
-import { LANES } from '../world/LaneConfig.js?v=202604010900';
+import { LANES } from '../world/LaneConfig.js?v=202604011200';
 
 const POWERUP_Y = 1.0;
 const PICKUP_SIZE = new THREE.Vector3(1.0, 1.2, 1.0);

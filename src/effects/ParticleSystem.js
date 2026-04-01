@@ -94,6 +94,11 @@ export class ParticleSystem {
         this._coinBurst = createParticlePoints(COIN_BURST_MAX, 0xFFD700, scene);
         this._coinVel = new Array(COIN_BURST_MAX).fill(null).map(() => ({ x: 0, y: 0, z: 0 }));
         this._coinActive = false;
+
+        // 弹射板绿色爆发
+        this._jumpPadBurst = createParticlePoints(COIN_BURST_MAX, 0x44FF44, scene);
+        this._jumpPadVel = new Array(COIN_BURST_MAX).fill(null).map(() => ({ x: 0, y: 0, z: 0 }));
+        this._jumpPadActive = false;
     }
 
     update(dt, playerPos, state, speed) {
@@ -101,6 +106,7 @@ export class ParticleSystem {
         this._updateDust(dt);
         this._updateExplosion(dt);
         this._updateCoinBurst(dt);
+        this._updateJumpPadBurst(dt);
     }
 
     triggerJumpDust(pos) {
@@ -131,6 +137,26 @@ export class ParticleSystem {
         this._coinBurst.geo.attributes.alpha.needsUpdate = true;
         this._coinBurst.geo.attributes.size.needsUpdate = true;
         this._coinActive = true;
+    }
+
+    triggerJumpPadBurst(pos) {
+        const { positions, alphas, sizes } = this._jumpPadBurst;
+        const count = 20;
+        for (let i = 0; i < count; i++) {
+            const i3 = i * 3;
+            positions[i3] = pos.x + (Math.random() - 0.5) * 1.5;
+            positions[i3 + 1] = pos.y + 0.1;
+            positions[i3 + 2] = pos.z + (Math.random() - 0.5) * 1.0;
+            this._jumpPadVel[i].x = (Math.random() - 0.5) * 3;
+            this._jumpPadVel[i].y = 5 + Math.random() * 8;
+            this._jumpPadVel[i].z = (Math.random() - 0.5) * 3;
+            alphas[i] = 1.0;
+            sizes[i] = 0.1 + Math.random() * 0.2;
+        }
+        this._jumpPadBurst.geo.attributes.position.needsUpdate = true;
+        this._jumpPadBurst.geo.attributes.alpha.needsUpdate = true;
+        this._jumpPadBurst.geo.attributes.size.needsUpdate = true;
+        this._jumpPadActive = true;
     }
 
     triggerExplosion(pos) {
@@ -170,6 +196,9 @@ export class ParticleSystem {
         this._coinBurst.alphas.fill(0);
         this._coinBurst.geo.attributes.alpha.needsUpdate = true;
         this._coinActive = false;
+        this._jumpPadBurst.alphas.fill(0);
+        this._jumpPadBurst.geo.attributes.alpha.needsUpdate = true;
+        this._jumpPadActive = false;
     }
 
     // ─── 拖尾 ───────────────────────────────────
@@ -297,5 +326,28 @@ export class ParticleSystem {
         geo.attributes.position.needsUpdate = true;
         geo.attributes.alpha.needsUpdate = true;
         if (!anyAlive) this._coinActive = false;
+    }
+
+    // ─── 弹射板绿色爆发 ──────────────────────────────
+
+    _updateJumpPadBurst(dt) {
+        if (!this._jumpPadActive) return;
+        const { positions, alphas, sizes, geo } = this._jumpPadBurst;
+        let anyAlive = false;
+        for (let i = 0; i < COIN_BURST_MAX; i++) {
+            if (alphas[i] <= 0) continue;
+            anyAlive = true;
+            const v = this._jumpPadVel[i];
+            const i3 = i * 3;
+            positions[i3] += v.x * dt;
+            positions[i3 + 1] += v.y * dt;
+            positions[i3 + 2] += v.z * dt;
+            v.y -= 8 * dt;
+            alphas[i] -= 1.5 * dt;
+            if (alphas[i] < 0) alphas[i] = 0;
+        }
+        geo.attributes.position.needsUpdate = true;
+        geo.attributes.alpha.needsUpdate = true;
+        if (!anyAlive) this._jumpPadActive = false;
     }
 }
