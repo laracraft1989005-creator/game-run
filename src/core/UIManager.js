@@ -1,6 +1,10 @@
 /**
  * UIManager — 集中管理所有 DOM 操作、过渡动画、分数动画
  */
+
+import { ProgressionManager } from '../gameplay/ProgressionManager.js?v=202604010900';
+import { TextureGenerator } from '../rendering/TextureGenerator.js?v=202604010900';
+
 export class UIManager {
     constructor() {
         // DOM 引用
@@ -10,6 +14,7 @@ export class UIManager {
         this.elLoading = document.getElementById('loading');
         this.elCountdown = document.getElementById('countdown');
         this.elCountdownNum = document.querySelector('#countdown .countdown-number');
+        this.elShop = document.getElementById('shop');
 
         this.elScore = document.getElementById('score');
         this.elDistance = document.getElementById('distance');
@@ -28,6 +33,14 @@ export class UIManager {
         this.elPowerUpLabel = document.querySelector('.powerup-label');
         this.elPowerUpFill = document.querySelector('.powerup-timer-fill');
         this.elCoinPopup = document.getElementById('coin-popup');
+
+        // 商店 & 钱包 DOM
+        this.elShopCoins = document.getElementById('shop-coins');
+        this.elMenuCoins = document.getElementById('menu-coins');
+        this.elShopSkins = document.getElementById('shop-skins');
+        this.elShopUpgrades = document.getElementById('shop-upgrades');
+        this.elEarnedCoins = document.getElementById('earned-coins');
+        this.elTotalCoins = document.getElementById('total-coins');
 
         // 分数动画状态
         this._displayScore = 0;
@@ -60,12 +73,22 @@ export class UIManager {
         this._hide(this.elHud);
         this._hide(this.elGameOver);
         this._hide(this.elCountdown);
+        this._hide(this.elShop);
+    }
+
+    showShop() {
+        this._hide(this.elMenu);
+        this._show(this.elShop);
+        this._hide(this.elHud);
+        this._hide(this.elGameOver);
+        this._hide(this.elCountdown);
     }
 
     showCountdown(onComplete) {
         this._hide(this.elMenu);
         this._hide(this.elGameOver);
         this._hide(this.elHud);
+        this._hide(this.elShop);
         this._show(this.elCountdown);
 
         const steps = ['3', '2', '1', 'GO!'];
@@ -271,6 +294,149 @@ export class UIManager {
     _updateMuteIcon(muted) {
         if (this.elMuteBtn) {
             this.elMuteBtn.textContent = muted ? '🔇' : '🔊';
+        }
+    }
+
+    /* ─── 商店 ─── */
+
+    updateShopCoins(coins) {
+        if (this.elShopCoins) this.elShopCoins.textContent = coins;
+        if (this.elMenuCoins) this.elMenuCoins.textContent = coins;
+    }
+
+    updateGameOverCoins(earned, total) {
+        if (this.elEarnedCoins) this.elEarnedCoins.textContent = earned;
+        if (this.elTotalCoins) this.elTotalCoins.textContent = total;
+    }
+
+    renderShopSkins(progression, selectedCharId, callbacks) {
+        if (!this.elShopSkins) return;
+        this.elShopSkins.innerHTML = '';
+
+        const skins = TextureGenerator.CHARACTER_SKINS;
+        const SKIN_COLORS = {
+            runner: '#2244AA', fire: '#CC2222', cyber: '#00FFFF',
+            nature: '#226633', royal: '#6622AA',
+        };
+
+        for (const skin of skins) {
+            const unlocked = progression.isSkinUnlocked(skin.id);
+            const cost = progression.getSkinCost(skin.id);
+            const isSelected = skin.id === selectedCharId;
+            const canAfford = progression.getCoins() >= cost;
+
+            const item = document.createElement('div');
+            item.className = 'shop-item' + (isSelected ? ' selected' : '') + (!unlocked ? ' locked' : '');
+
+            // 角色名
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'shop-item-name';
+            const dot = document.createElement('span');
+            dot.className = 'shop-item-dot';
+            dot.style.background = SKIN_COLORS[skin.id] || skin.body;
+            nameDiv.appendChild(dot);
+            nameDiv.appendChild(document.createTextNode(skin.name));
+            item.appendChild(nameDiv);
+
+            // 价格行
+            if (!unlocked && cost > 0) {
+                const costDiv = document.createElement('div');
+                costDiv.className = 'shop-item-cost';
+                costDiv.textContent = '● ' + cost;
+                item.appendChild(costDiv);
+            }
+
+            // 按钮
+            const btn = document.createElement('button');
+            btn.className = 'shop-item-btn';
+
+            if (isSelected) {
+                btn.textContent = '已装备';
+                btn.classList.add('equipped');
+            } else if (unlocked) {
+                btn.textContent = '选择';
+                btn.addEventListener('click', () => callbacks.onSelect(skin.id));
+            } else if (canAfford) {
+                btn.textContent = '购买';
+                btn.addEventListener('click', () => callbacks.onBuy(skin.id));
+            } else {
+                btn.textContent = '金币不足';
+                btn.classList.add('disabled');
+            }
+
+            item.appendChild(btn);
+            this.elShopSkins.appendChild(item);
+        }
+    }
+
+    renderShopUpgrades(progression, callbacks) {
+        if (!this.elShopUpgrades) return;
+        this.elShopUpgrades.innerHTML = '';
+
+        const UPGRADE_INFO = {
+            shield:          { label: '护盾', color: '#4488FF' },
+            magnet:          { label: '磁铁', color: '#AA44FF' },
+            scoreMultiplier: { label: '分数x2', color: '#44FF88' },
+        };
+
+        for (const type of ['shield', 'magnet', 'scoreMultiplier']) {
+            const info = UPGRADE_INFO[type];
+            const level = progression.getUpgradeLevel(type);
+            const maxLevel = progression.getMaxLevel(type);
+            const cost = progression.getUpgradeCost(type);
+            const isMaxed = level >= maxLevel;
+            const canAfford = !isMaxed && progression.getCoins() >= cost;
+
+            const item = document.createElement('div');
+            item.className = 'shop-item';
+
+            // 名称
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'shop-item-name';
+            const dot = document.createElement('span');
+            dot.className = 'shop-item-dot';
+            dot.style.background = info.color;
+            nameDiv.appendChild(dot);
+            nameDiv.appendChild(document.createTextNode(info.label));
+            item.appendChild(nameDiv);
+
+            // 等级圆点
+            const pips = document.createElement('div');
+            pips.className = 'upgrade-pips';
+            for (let i = 0; i < maxLevel; i++) {
+                const pip = document.createElement('span');
+                pip.className = 'upgrade-pip' + (i < level ? ' filled' : '');
+                pips.appendChild(pip);
+            }
+            item.appendChild(pips);
+
+            // 时长提示
+            const duration = progression.getDuration(type);
+            const costDiv = document.createElement('div');
+            costDiv.className = 'shop-item-cost';
+            costDiv.textContent = duration + 's';
+            if (!isMaxed) {
+                const nextDuration = ProgressionManager.UPGRADE_DURATIONS[type][level + 1];
+                costDiv.textContent += ' → ' + nextDuration + 's · ● ' + cost;
+            }
+            item.appendChild(costDiv);
+
+            // 按钮
+            const btn = document.createElement('button');
+            btn.className = 'shop-item-btn';
+            if (isMaxed) {
+                btn.textContent = 'MAX';
+                btn.classList.add('maxed');
+            } else if (canAfford) {
+                btn.textContent = '升级';
+                btn.addEventListener('click', () => callbacks.onUpgrade(type));
+            } else {
+                btn.textContent = '金币不足';
+                btn.classList.add('disabled');
+            }
+
+            item.appendChild(btn);
+            this.elShopUpgrades.appendChild(item);
         }
     }
 

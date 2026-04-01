@@ -3,7 +3,7 @@
  * 三种道具: shield / magnet / scoreMultiplier
  */
 import * as THREE from 'three';
-import { LANES } from '../world/LaneConfig.js?v=202603311420';
+import { LANES } from '../world/LaneConfig.js?v=202604010900';
 
 const POWERUP_Y = 1.0;
 const PICKUP_SIZE = new THREE.Vector3(1.0, 1.2, 1.0);
@@ -43,6 +43,7 @@ export class PowerUpSystem {
         // 活跃效果
         this._active = null;   // { type, timer }
         this.justExpired = null; // 帧间通信
+        this._durationProvider = null; // 外部升级时长回调
 
         // 护盾视觉 mesh
         this._shieldMesh = null;
@@ -168,12 +169,17 @@ export class PowerUpSystem {
         powerUp.box.setFromCenterAndSize(worldPos, PICKUP_SIZE);
     }
 
+    /** 设置外部时长回调（用于道具升级） */
+    setDurationProvider(fn) {
+        this._durationProvider = fn;
+    }
+
     /** 激活道具效果 */
     activate(type) {
         // 如果已有效果，先清除
         if (this._active) this._deactivate();
 
-        this._active = { type, timer: TYPES[type].duration };
+        this._active = { type, timer: this.getDuration(type) };
 
         if (type === 'shield') {
             this._shieldMesh.visible = true;
@@ -215,6 +221,10 @@ export class PowerUpSystem {
     }
 
     getDuration(type) {
+        if (this._durationProvider) {
+            const d = this._durationProvider(type);
+            if (d > 0) return d;
+        }
         return TYPES[type]?.duration || 0;
     }
 

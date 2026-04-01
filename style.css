@@ -484,14 +484,221 @@ body {
     font-size: 0.85rem;
 }
 
+/* ─── 菜单钱包 + 按钮组 ─── */
+.menu-wallet {
+    font-size: 1.3rem;
+    color: #FFD700;
+    font-weight: 700;
+    margin-bottom: 1.2rem;
+}
+
+.menu-buttons {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 0.5rem;
+}
+
+.btn-secondary {
+    padding: 14px 36px;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.85);
+    background: transparent;
+    border: 2px solid rgba(255,255,255,0.25);
+    border-radius: 50px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+    box-shadow: none;
+}
+
+.btn-secondary:hover {
+    border-color: rgba(255,255,255,0.5);
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(255,255,255,0.1);
+}
+
+.btn-secondary:active {
+    transform: scale(0.97);
+}
+
+/* ─── 商店 ─── */
+#shop {
+    background: rgba(0, 0, 0, 0.85);
+}
+
+.shop-panel {
+    max-width: 420px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 2rem 1.5rem;
+    text-align: center;
+}
+
+.shop-panel h2 {
+    font-size: 2.4rem;
+    color: #fff;
+    letter-spacing: 0.15em;
+    margin-bottom: 0.5rem;
+}
+
+.shop-wallet {
+    font-size: 1.5rem;
+    color: #FFD700;
+    font-weight: 900;
+    margin-bottom: 1.5rem;
+}
+
+.shop-section-title {
+    font-size: 1rem;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    margin: 1.2rem 0 0.6rem;
+    text-align: left;
+}
+
+.shop-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.shop-item {
+    background: rgba(255,255,255,0.06);
+    border: 2px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 12px 10px;
+    text-align: center;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.shop-item.selected {
+    border-color: #FFD700;
+    box-shadow: 0 0 12px rgba(255,215,0,0.25);
+}
+
+.shop-item.locked {
+    opacity: 0.55;
+}
+
+.shop-item-name {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 6px;
+}
+
+.shop-item-dot {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+}
+
+.shop-item-cost {
+    font-size: 0.8rem;
+    color: #FFD700;
+    margin-bottom: 8px;
+}
+
+.upgrade-pips {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    margin-bottom: 6px;
+}
+
+.upgrade-pip {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.3);
+    background: transparent;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.upgrade-pip.filled {
+    background: #FFD700;
+    border-color: #FFD700;
+}
+
+.shop-item-btn {
+    display: inline-block;
+    padding: 5px 16px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, #4488FF, #6644FF);
+    border: none;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: transform 0.15s, opacity 0.2s;
+}
+
+.shop-item-btn:hover {
+    transform: scale(1.05);
+}
+
+.shop-item-btn:active {
+    transform: scale(0.95);
+}
+
+.shop-item-btn.equipped {
+    background: rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.5);
+    cursor: default;
+}
+
+.shop-item-btn.equipped:hover {
+    transform: none;
+}
+
+.shop-item-btn.disabled {
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.3);
+    cursor: not-allowed;
+}
+
+.shop-item-btn.disabled:hover {
+    transform: none;
+}
+
+.shop-item-btn.maxed {
+    background: rgba(255,215,0,0.15);
+    color: #FFD700;
+    cursor: default;
+}
+
+.shop-item-btn.maxed:hover {
+    transform: none;
+}
+
+#shop .btn-secondary {
+    margin-top: 1.5rem;
+}
+
+/* 结算页金币行 */
+.coins-earned {
+    color: #FFD700;
+    font-size: 1rem;
+    font-weight: 600;
+    margin-top: 1rem;
+}
+
 /* ─── 移动端适配 ─── */
 @media (max-width: 600px) {
     #menu h1 { font-size: 2.5rem; }
     #menu .subtitle { font-size: 0.9rem; }
     .btn { padding: 12px 36px; font-size: 1.1rem; }
+    .btn-secondary { padding: 10px 24px; font-size: 1rem; }
     .controls-hint { font-size: 0.75rem; padding: 0 16px; }
-    .char-picker { gap: 6px; }
-    .char-btn { padding: 6px 10px; font-size: 0.75rem; }
+    .menu-wallet { font-size: 1.1rem; }
+    .menu-buttons { gap: 8px; }
     .hud-score { font-size: 1.8rem; }
     .hud-distance { font-size: 0.85rem; }
     .milestone-popup { font-size: 1.6rem; }
@@ -504,4 +711,9 @@ body {
     .countdown-number { font-size: 5rem; }
     .loading-title { font-size: 2rem; }
     .progress-bar { width: 240px; }
+    .shop-panel { padding: 1.5rem 1rem; }
+    .shop-panel h2 { font-size: 1.8rem; }
+    .shop-item { padding: 10px 8px; }
+    .shop-item-name { font-size: 0.8rem; }
+    .coins-earned { font-size: 0.85rem; }
 }

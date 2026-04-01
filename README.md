@@ -24,6 +24,17 @@
 
 ## 版本历史
 
+### v1.0 — 商店 + 永久进度系统
+- **永久金币钱包**
+  - 每局收集的金币在 Game Over 时存入钱包（localStorage 持久化）
+  - 菜单页显示金币余额，结算页显示本局获得 + 总计
+- **商店系统**（菜单页进入）
+  - **角色解锁**：跑者免费，其余 4 种花金币解锁（500~2000）
+  - **道具升级**：护盾/磁铁/分数x2 各 3 级升级，提升持续时间
+  - 购买/升级即时生效，金币扣除动态刷新
+- **ProgressionManager**：统一管理进度数据（金币、解锁、升级等级）
+- **v0.9 迁移兼容**：老玩家已选角色自动解锁
+
 ### v0.9 — 角色选择 + Bug 修复
 - **5 种角色皮肤**（同一模型不同配色，菜单直接选择）
   - 跑者（蓝）、烈焰（红）、赛博（青）、森林（绿）、皇家（紫）
@@ -119,7 +130,7 @@ city-runner/
 │   └── obstacles/          障碍物模型 GLB
 └── src/
     ├── core/               Game, InputManager, AssetManager, SoundManager, UIManager
-    ├── gameplay/           ScoreManager, DifficultyManager, CoinSystem, PowerUpSystem, ObstaclePatterns
+    ├── gameplay/           ScoreManager, DifficultyManager, CoinSystem, PowerUpSystem, ObstaclePatterns, ProgressionManager
     ├── player/             PlayerController, CharacterModel, AnimationController
     ├── rendering/          SceneSetup, Camera, Lighting, Sky, ThemeManager
     └── world/              ChunkManager, CityChunk, LaneConfig

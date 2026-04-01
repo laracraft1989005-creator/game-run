@@ -1,24 +1,25 @@
 import * as THREE from 'three';
-import { createRenderer, createCamera, createScene, setupResize } from '../rendering/SceneSetup.js?v=202603311420';
-import { LightingRig } from '../rendering/LightingRig.js?v=202603311420';
-import { SkyController } from '../rendering/SkyController.js?v=202603311420';
-import { CameraController } from '../rendering/CameraController.js?v=202603311420';
-import { InputManager } from './InputManager.js?v=202603311420';
-import { AssetManager } from './AssetManager.js?v=202603311420';
-import { TextureGenerator } from '../rendering/TextureGenerator.js?v=202603311420';
-import { PlayerController } from '../player/PlayerController.js?v=202603311420';
-import { CollisionDetector } from '../player/CollisionDetector.js?v=202603311420';
-import { ChunkManager } from '../world/ChunkManager.js?v=202603311420';
-import { ScoreManager } from '../gameplay/ScoreManager.js?v=202603311420';
-import { DifficultyManager } from '../gameplay/DifficultyManager.js?v=202603311420';
-import { ParticleSystem } from '../effects/ParticleSystem.js?v=202603311420';
-import { SpeedLines } from '../effects/SpeedLines.js?v=202603311420';
-import { PostProcessing } from '../rendering/PostProcessing.js?v=202603311420';
-import { SoundManager } from './SoundManager.js?v=202603311420';
-import { UIManager } from './UIManager.js?v=202603311420';
-import { CoinSystem } from '../gameplay/CoinSystem.js?v=202603311420';
-import { PowerUpSystem } from '../gameplay/PowerUpSystem.js?v=202603311420';
-import { ThemeManager, THEME_CONFIGS } from '../rendering/ThemeManager.js?v=202603311420';
+import { createRenderer, createCamera, createScene, setupResize } from '../rendering/SceneSetup.js?v=202604010900';
+import { LightingRig } from '../rendering/LightingRig.js?v=202604010900';
+import { SkyController } from '../rendering/SkyController.js?v=202604010900';
+import { CameraController } from '../rendering/CameraController.js?v=202604010900';
+import { InputManager } from './InputManager.js?v=202604010900';
+import { AssetManager } from './AssetManager.js?v=202604010900';
+import { TextureGenerator } from '../rendering/TextureGenerator.js?v=202604010900';
+import { PlayerController } from '../player/PlayerController.js?v=202604010900';
+import { CollisionDetector } from '../player/CollisionDetector.js?v=202604010900';
+import { ChunkManager } from '../world/ChunkManager.js?v=202604010900';
+import { ScoreManager } from '../gameplay/ScoreManager.js?v=202604010900';
+import { DifficultyManager } from '../gameplay/DifficultyManager.js?v=202604010900';
+import { ParticleSystem } from '../effects/ParticleSystem.js?v=202604010900';
+import { SpeedLines } from '../effects/SpeedLines.js?v=202604010900';
+import { PostProcessing } from '../rendering/PostProcessing.js?v=202604010900';
+import { SoundManager } from './SoundManager.js?v=202604010900';
+import { UIManager } from './UIManager.js?v=202604010900';
+import { CoinSystem } from '../gameplay/CoinSystem.js?v=202604010900';
+import { PowerUpSystem } from '../gameplay/PowerUpSystem.js?v=202604010900';
+import { ThemeManager, THEME_CONFIGS } from '../rendering/ThemeManager.js?v=202604010900';
+import { ProgressionManager } from '../gameplay/ProgressionManager.js?v=202604010900';
 
 const STATE = { MENU: 'menu', COUNTDOWN: 'countdown', PLAYING: 'playing', GAME_OVER: 'gameover' };
 
@@ -41,6 +42,7 @@ export class Game {
         this.sky = new SkyController(this.scene);
         this.cameraCtrl = new CameraController(this.camera);
         this._selectedCharacter = localStorage.getItem('cityRunnerChar') || 'runner';
+        // 验证角色是否已解锁（兼容 v0.9 → v1.0 升级，ProgressionManager 尚未创建时先用 runner）
         this.player = new PlayerController(this.scene, this.textureGen, this._selectedCharacter);
         this.collision = new CollisionDetector();
         this.score = new ScoreManager();
@@ -49,6 +51,10 @@ export class Game {
         this.ui = new UIManager();
         this.coinSystem = new CoinSystem();
         this.powerUpSystem = new PowerUpSystem(this.scene);
+        this.progression = new ProgressionManager();
+
+        // 道具升级时长接线
+        this.powerUpSystem.setDurationProvider(type => this.progression.getDuration(type));
 
         // 地面
         const groundGeo = new THREE.PlaneGeometry(200, 1000);
@@ -83,22 +89,16 @@ export class Game {
             this._startCountdown();
         });
 
-        // 角色选择 UI
-        document.querySelectorAll('.char-btn').forEach(btn => {
-            if (btn.dataset.char === this._selectedCharacter) {
-                btn.classList.add('selected');
-            } else {
-                btn.classList.remove('selected');
-            }
-            btn.addEventListener('click', () => {
-                this.sound.unlock();
-                this.sound.playUIClick();
-                document.querySelectorAll('.char-btn').forEach(b => b.classList.remove('selected'));
-                btn.classList.add('selected');
-                this._selectedCharacter = btn.dataset.char;
-                localStorage.setItem('cityRunnerChar', this._selectedCharacter);
-                this.player.switchCharacter(this._selectedCharacter);
-            });
+        // 商店按钮
+        document.getElementById('btn-shop')?.addEventListener('click', () => {
+            this.sound.unlock();
+            this.sound.playUIClick();
+            this._openShop();
+        });
+        document.getElementById('btn-shop-back')?.addEventListener('click', () => {
+            this.sound.playUIClick();
+            this.ui.showMenu();
+            this.ui.updateShopCoins(this.progression.getCoins());
         });
 
         // 静音按钮
@@ -153,7 +153,15 @@ export class Game {
             this.sky, this.lighting, this.postProcessing
         );
 
+        // 验证角色解锁状态
+        if (!this.progression.isSkinUnlocked(this._selectedCharacter)) {
+            this._selectedCharacter = 'runner';
+            localStorage.setItem('cityRunnerChar', 'runner');
+            this.player.switchCharacter('runner');
+        }
+
         this.ui.showMenu();
+        this.ui.updateShopCoins(this.progression.getCoins());
     }
 
     _startCountdown() {
@@ -183,6 +191,45 @@ export class Game {
         });
     }
 
+    _openShop() {
+        this.ui.showShop();
+        this.ui.updateShopCoins(this.progression.getCoins());
+        this._renderShop();
+    }
+
+    _renderShop() {
+        this.ui.renderShopSkins(this.progression, this._selectedCharacter, {
+            onSelect: (skinId) => {
+                this.sound.playUIClick();
+                this._selectedCharacter = skinId;
+                localStorage.setItem('cityRunnerChar', skinId);
+                this.player.switchCharacter(skinId);
+                this._renderShop();
+            },
+            onBuy: (skinId) => {
+                this.sound.playUIClick();
+                if (this.progression.unlockSkin(skinId)) {
+                    this.sound.playMilestone();
+                    this._selectedCharacter = skinId;
+                    localStorage.setItem('cityRunnerChar', skinId);
+                    this.player.switchCharacter(skinId);
+                    this.ui.updateShopCoins(this.progression.getCoins());
+                    this._renderShop();
+                }
+            },
+        });
+        this.ui.renderShopUpgrades(this.progression, {
+            onUpgrade: (type) => {
+                this.sound.playUIClick();
+                if (this.progression.purchaseUpgrade(type)) {
+                    this.sound.playPowerupPickup();
+                    this.ui.updateShopCoins(this.progression.getCoins());
+                    this._renderShop();
+                }
+            },
+        });
+    }
+
     gameOver() {
         this.state = STATE.GAME_OVER;
         const isNewRecord = this.score.saveHighScore();
@@ -191,15 +238,20 @@ export class Game {
         this.sound.stopMusic();
         this.sound.resetFootsteps();
 
+        // 持久化金币
+        const earnedCoins = this.score.coins;
+        this.progression.addCoins(earnedCoins);
+
         this.ui.showGameOver({
             score: this.score.score,
             highScore: this.score.highScore,
             distance: this.score.distance,
-            coins: this.score.coins,
+            coins: earnedCoins,
             time: this.difficulty.elapsed,
             maxSpeed: this.difficulty.maxReachedSpeed,
             isNewRecord,
         });
+        this.ui.updateGameOverCoins(earnedCoins, this.progression.getCoins());
     }
 
     update() {

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { LANES, LANE_SWITCH_SPEED } from '../world/LaneConfig.js?v=202603311420';
-import { CharacterModel } from './CharacterModel.js?v=202603311420';
-import { AnimationController } from './AnimationController.js?v=202603311420';
+import { LANES, LANE_SWITCH_SPEED } from '../world/LaneConfig.js?v=202604010900';
+import { CharacterModel } from './CharacterModel.js?v=202604010900';
+import { AnimationController } from './AnimationController.js?v=202604010900';
 
 const JUMP_VELOCITY = 12;
 const GRAVITY = -30;

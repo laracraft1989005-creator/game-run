@@ -3,7 +3,7 @@
  * 程序化 CylinderGeometry 金币，三种排列模式
  */
 import * as THREE from 'three';
-import { LANES } from '../world/LaneConfig.js?v=202603311420';
+import { LANES } from '../world/LaneConfig.js?v=202604010900';
 
 const COIN_Y = 0.8;          // 路面上方高度
 const COIN_RADIUS = 0.4;
