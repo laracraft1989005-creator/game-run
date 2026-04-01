@@ -4,6 +4,7 @@
 
 import { ProgressionManager } from '../gameplay/ProgressionManager.js?v=202604011500';
 import { TextureGenerator } from '../rendering/TextureGenerator.js?v=202604011500';
+import { ACHIEVEMENT_MISSIONS } from '../gameplay/MissionDefinitions.js?v=202604011500';
 
 export class UIManager {
     constructor() {
@@ -34,6 +35,14 @@ export class UIManager {
         this.elPowerUpFill = document.querySelector('.powerup-timer-fill');
         this.elCoinPopup = document.getElementById('coin-popup');
 
+        // 任务系统 DOM
+        this.elMissions = document.getElementById('missions');
+        this.elMissionTracker = document.getElementById('mission-tracker');
+        this.elMissionToast = document.getElementById('mission-toast');
+        this.elMissionSummary = document.getElementById('mission-summary');
+        this.elMissionsSession = document.getElementById('missions-session');
+        this.elMissionsAchievements = document.getElementById('missions-achievements');
+
         // 商店 & 钱包 DOM
         this.elShopCoins = document.getElementById('shop-coins');
         this.elMenuCoins = document.getElementById('menu-coins');
@@ -55,6 +64,9 @@ export class UIManager {
         // 道具计时条
         this._powerUpDuration = 0;
         this._powerUpRemaining = 0;
+
+        // 任务 toast 计时
+        this._missionToastTimer = 0;
     }
 
     /* ─── 界面切换 ─── */
@@ -74,6 +86,7 @@ export class UIManager {
         this._hide(this.elGameOver);
         this._hide(this.elCountdown);
         this._hide(this.elShop);
+        this._hide(this.elMissions);
     }
 
     showShop() {
@@ -82,6 +95,16 @@ export class UIManager {
         this._hide(this.elHud);
         this._hide(this.elGameOver);
         this._hide(this.elCountdown);
+        this._hide(this.elMissions);
+    }
+
+    showMissions() {
+        this._hide(this.elMenu);
+        this._show(this.elMissions);
+        this._hide(this.elHud);
+        this._hide(this.elGameOver);
+        this._hide(this.elCountdown);
+        this._hide(this.elShop);
     }
 
     showCountdown(onComplete) {
@@ -89,6 +112,7 @@ export class UIManager {
         this._hide(this.elGameOver);
         this._hide(this.elHud);
         this._hide(this.elShop);
+        this._hide(this.elMissions);
         this._show(this.elCountdown);
 
         const steps = ['3', '2', '1', 'GO!'];
@@ -116,12 +140,14 @@ export class UIManager {
         this._hide(this.elMenu);
         this._hide(this.elGameOver);
         this._hide(this.elCountdown);
+        this._hide(this.elMissions);
         this._show(this.elHud);
         this._displayScore = 0;
         this._actualScore = 0;
         this.updateCoinCount(0);
         this.hidePowerUp();
         this.showMultiplier(false);
+        this._show(this.elMissionTracker);
     }
 
     showGameOver(stats) {
@@ -189,6 +215,14 @@ export class UIManager {
             this._coinPopupTimer -= dt;
             if (this._coinPopupTimer <= 0 && this.elCoinPopup) {
                 this.elCoinPopup.classList.add('hidden');
+            }
+        }
+
+        // 任务完成 toast
+        if (this._missionToastTimer > 0) {
+            this._missionToastTimer -= dt;
+            if (this._missionToastTimer <= 0 && this.elMissionToast) {
+                this.elMissionToast.classList.add('hidden');
             }
         }
 
@@ -448,6 +482,183 @@ export class UIManager {
             item.appendChild(btn);
             this.elShopUpgrades.appendChild(item);
         }
+    }
+
+    /* ─── 任务系统 ─── */
+
+    renderMissionTracker(missions) {
+        if (!this.elMissionTracker) return;
+        this.elMissionTracker.innerHTML = '';
+        for (const m of missions) {
+            const row = document.createElement('div');
+            row.className = 'mission-row' + (m.completed ? ' completed' : '');
+
+            const desc = document.createElement('span');
+            desc.className = 'mission-desc';
+            desc.textContent = m.description;
+
+            const prog = document.createElement('span');
+            prog.className = 'mission-progress';
+            prog.textContent = m.completed ? '\u2713' : `${m.current}/${m.target}`;
+
+            row.appendChild(desc);
+            row.appendChild(prog);
+            this.elMissionTracker.appendChild(row);
+        }
+    }
+
+    flashMissionComplete(description, reward) {
+        if (!this.elMissionToast) return;
+        this.elMissionToast.innerHTML =
+            '<div class="mission-toast-title">MISSION COMPLETE!</div>' +
+            '<div class="mission-toast-reward">' + description + ' +' + reward + '</div>';
+        this.elMissionToast.classList.remove('hidden', 'animate');
+        void this.elMissionToast.offsetWidth;
+        this.elMissionToast.classList.add('animate');
+        this._missionToastTimer = 1.5;
+    }
+
+    renderMissionSummary(sessionMissions, completedAchievements) {
+        if (!this.elMissionSummary) return;
+        const hasMissions = sessionMissions.length > 0;
+        const hasAchievements = completedAchievements.length > 0;
+        if (!hasMissions && !hasAchievements) {
+            this._hide(this.elMissionSummary);
+            return;
+        }
+
+        this.elMissionSummary.innerHTML = '';
+        this._show(this.elMissionSummary);
+
+        // 单局任务
+        const title = document.createElement('div');
+        title.className = 'mission-summary-title';
+        title.textContent = '任务';
+        this.elMissionSummary.appendChild(title);
+
+        for (const m of sessionMissions) {
+            const row = document.createElement('div');
+            row.className = 'mission-summary-row' + (m.completed ? ' completed' : '');
+
+            const status = document.createElement('span');
+            status.className = 'mission-summary-status';
+            status.textContent = m.completed ? '\u2713' : '\u2717';
+
+            const desc = document.createElement('span');
+            desc.className = 'mission-summary-desc';
+            desc.textContent = m.def.description;
+
+            const reward = document.createElement('span');
+            reward.className = 'mission-summary-reward';
+            reward.textContent = m.completed ? '+' + m.def.reward : '';
+
+            row.appendChild(status);
+            row.appendChild(desc);
+            row.appendChild(reward);
+            this.elMissionSummary.appendChild(row);
+        }
+
+        // 成就
+        for (const a of completedAchievements) {
+            const row = document.createElement('div');
+            row.className = 'achievement-summary-row';
+
+            const status = document.createElement('span');
+            status.className = 'mission-summary-status';
+            status.textContent = '\u2605';
+
+            const desc = document.createElement('span');
+            desc.className = 'mission-summary-desc';
+            desc.textContent = a.description;
+
+            const reward = document.createElement('span');
+            reward.className = 'mission-summary-reward';
+            reward.textContent = '+' + a.reward;
+
+            row.appendChild(status);
+            row.appendChild(desc);
+            row.appendChild(reward);
+            this.elMissionSummary.appendChild(row);
+        }
+    }
+
+    renderMissionsPanel(sessionMissions, progression) {
+        // 单局任务预览
+        if (this.elMissionsSession) {
+            this.elMissionsSession.innerHTML = '';
+            if (sessionMissions.length === 0) {
+                const hint = document.createElement('div');
+                hint.style.cssText = 'font-size:0.8rem; color:rgba(255,255,255,0.4); padding:12px;';
+                hint.textContent = '开始游戏后将随机分配3个任务';
+                this.elMissionsSession.appendChild(hint);
+            } else {
+                for (const m of sessionMissions) {
+                    this.elMissionsSession.appendChild(this._createMissionItem(m));
+                }
+            }
+        }
+
+        // 成就列表
+        if (this.elMissionsAchievements) {
+            this.elMissionsAchievements.innerHTML = '';
+            const completedSet = new Set(progression.getCompletedAchievements());
+            const lifetime = progression.getLifetimeStats();
+            const skinsCount = progression.getUnlockedSkins().length;
+
+            for (const def of ACHIEVEMENT_MISSIONS) {
+                const isCompleted = completedSet.has(def.id);
+                let current;
+                if (def.stat === 'totalSkinsUnlocked') {
+                    current = skinsCount;
+                } else {
+                    current = lifetime[def.stat] || 0;
+                }
+                current = Math.min(current, def.value);
+
+                this.elMissionsAchievements.appendChild(this._createMissionItem({
+                    description: def.description,
+                    current,
+                    target: def.value,
+                    reward: def.reward,
+                    completed: isCompleted,
+                }));
+            }
+        }
+    }
+
+    _createMissionItem(m) {
+        const item = document.createElement('div');
+        item.className = 'mission-item' + (m.completed ? ' completed' : '');
+
+        const info = document.createElement('div');
+        info.className = 'mission-item-info';
+
+        const desc = document.createElement('div');
+        desc.className = 'mission-item-desc';
+        desc.textContent = m.completed ? '\u2713 ' + m.description : m.description;
+
+        const prog = document.createElement('div');
+        prog.className = 'mission-item-progress';
+        prog.textContent = `${Math.floor(m.current)} / ${m.target}`;
+
+        const bar = document.createElement('div');
+        bar.className = 'mission-item-bar';
+        const fill = document.createElement('div');
+        fill.className = 'mission-item-bar-fill';
+        fill.style.width = Math.min(100, m.current / m.target * 100) + '%';
+        bar.appendChild(fill);
+
+        info.appendChild(desc);
+        info.appendChild(prog);
+        info.appendChild(bar);
+
+        const reward = document.createElement('div');
+        reward.className = 'mission-item-reward';
+        reward.textContent = m.completed ? '\u2713' : '\u25cf ' + m.reward;
+
+        item.appendChild(info);
+        item.appendChild(reward);
+        return item;
     }
 
     /* ─── 工具方法 ─── */

@@ -215,6 +215,28 @@ export class SoundManager {
         });
     }
 
+    playMissionComplete() {
+        if (!this.audioCtx) return;
+        const ctx = this.audioCtx;
+        const t = ctx.currentTime;
+        // D5, F#5, A5 — 大三和弦上升琶音，比 milestone 更明亮
+        const notes = [587, 740, 880];
+        notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            const start = t + i * 0.1;
+            g.gain.setValueAtTime(0, start);
+            g.gain.linearRampToValueAtTime(0.3, start + 0.015);
+            g.gain.exponentialRampToValueAtTime(0.001, start + 0.25);
+            osc.connect(g);
+            g.connect(this.sfxGain);
+            osc.start(start);
+            osc.stop(start + 0.25);
+        });
+    }
+
     playSpeedUp() {
         if (!this.audioCtx) return;
         this._sweep(400, 1200, 0.3, 'sine', 0.2);

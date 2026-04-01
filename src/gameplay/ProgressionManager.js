@@ -103,19 +103,60 @@ export class ProgressionManager {
         return durations[Math.min(level, durations.length - 1)];
     }
 
+    // ─── Missions & Achievements ───
+
+    getLifetimeStats() {
+        return this._data.missions.lifetimeStats;
+    }
+
+    updateLifetimeStats(stats) {
+        this._data.missions.lifetimeStats = stats;
+        this._save();
+    }
+
+    getCompletedAchievements() {
+        return this._data.missions.completedAchievements;
+    }
+
+    addCompletedAchievement(id) {
+        if (!this._data.missions.completedAchievements.includes(id)) {
+            this._data.missions.completedAchievements.push(id);
+            this._save();
+        }
+    }
+
     // ─── Persistence ───
+
+    static _defaultMissions() {
+        return {
+            completedAchievements: [],
+            lifetimeStats: {
+                totalDistance: 0,
+                totalCoins: 0,
+                totalGames: 0,
+                totalJumps: 0,
+                totalSlides: 0,
+                totalRides: 0,
+            },
+        };
+    }
 
     _load() {
         const defaults = {
             coins: 0,
             unlockedSkins: ['runner'],
             upgrades: { shield: 0, magnet: 0, scoreMultiplier: 0 },
+            missions: ProgressionManager._defaultMissions(),
         };
 
         try {
             const raw = localStorage.getItem(ProgressionManager.STORAGE_KEY);
             if (raw) {
                 const parsed = JSON.parse(raw);
+                // v1.3 迁移：如果旧版数据没有 missions 字段，补充默认值
+                const missions = parsed.missions || ProgressionManager._defaultMissions();
+                if (!missions.lifetimeStats) missions.lifetimeStats = ProgressionManager._defaultMissions().lifetimeStats;
+                if (!missions.completedAchievements) missions.completedAchievements = [];
                 return {
                     coins: typeof parsed.coins === 'number' ? parsed.coins : 0,
                     unlockedSkins: Array.isArray(parsed.unlockedSkins) ? parsed.unlockedSkins : ['runner'],
@@ -124,6 +165,7 @@ export class ProgressionManager {
                         magnet: parsed.upgrades?.magnet || 0,
                         scoreMultiplier: parsed.upgrades?.scoreMultiplier || 0,
                     },
+                    missions,
                 };
             }
         } catch (e) {

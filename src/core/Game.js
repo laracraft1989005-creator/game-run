@@ -21,6 +21,7 @@ import { PowerUpSystem } from '../gameplay/PowerUpSystem.js?v=202604011500';
 import { ThemeManager, THEME_CONFIGS } from '../rendering/ThemeManager.js?v=202604011500';
 import { ProgressionManager } from '../gameplay/ProgressionManager.js?v=202604011500';
 import { RideSystem } from '../gameplay/RideSystem.js?v=202604011500';
+import { MissionSystem } from '../gameplay/MissionSystem.js?v=202604011500';
 
 const STATE = { MENU: 'menu', COUNTDOWN: 'countdown', PLAYING: 'playing', GAME_OVER: 'gameover' };
 
@@ -53,6 +54,7 @@ export class Game {
         this.coinSystem = new CoinSystem();
         this.powerUpSystem = new PowerUpSystem(this.scene);
         this.progression = new ProgressionManager();
+        this.missionSystem = new MissionSystem(this.progression);
         this.rideSystem = new RideSystem(this.scene);
 
         // 道具升级时长接线
@@ -101,6 +103,17 @@ export class Game {
             this.sound.playUIClick();
             this.ui.showMenu();
             this.ui.updateShopCoins(this.progression.getCoins());
+        });
+
+        // 任务按钮
+        document.getElementById('btn-missions')?.addEventListener('click', () => {
+            this.sound.unlock();
+            this.sound.playUIClick();
+            this._openMissions();
+        });
+        document.getElementById('btn-missions-back')?.addEventListener('click', () => {
+            this.sound.playUIClick();
+            this.ui.showMenu();
         });
 
         // 静音按钮
@@ -178,6 +191,7 @@ export class Game {
         this.coinSystem.reset();
         this.powerUpSystem.reset();
         this.rideSystem.reset();
+        this.missionSystem.startSession();
         if (this.themeManager) this.themeManager.reset();
         this.chunks.reset();
         this.chunks.update(0, 0);
@@ -190,6 +204,7 @@ export class Game {
         this.ui.showCountdown(() => {
             this.state = STATE.PLAYING;
             this.ui.showPlaying();
+            this.ui.renderMissionTracker(this.missionSystem.getActiveSessionMissions());
             this.sound.startMusic();
         });
     }
@@ -233,6 +248,14 @@ export class Game {
         });
     }
 
+    _openMissions() {
+        this.ui.showMissions();
+        this.ui.renderMissionsPanel(
+            this.missionSystem.getActiveSessionMissions(),
+            this.progression
+        );
+    }
+
     gameOver() {
         this.state = STATE.GAME_OVER;
         const isNewRecord = this.score.saveHighScore();
@@ -241,20 +264,30 @@ export class Game {
         this.sound.stopMusic();
         this.sound.resetFootsteps();
 
-        // 持久化金币
+        // 结束任务系统（累加终身统计 + 检查成就）
+        const missionResult = this.missionSystem.endSession();
+
+        // 持久化金币（游戏内收集的）
         const earnedCoins = this.score.coins;
         this.progression.addCoins(earnedCoins);
+
+        // 总收益 = 游戏内金币 + 任务奖励（任务奖励已在 checkSessionMissions / endSession 中加过）
+        const totalEarned = earnedCoins + missionResult.totalReward;
 
         this.ui.showGameOver({
             score: this.score.score,
             highScore: this.score.highScore,
             distance: this.score.distance,
-            coins: earnedCoins,
+            coins: totalEarned,
             time: this.difficulty.elapsed,
             maxSpeed: this.difficulty.maxReachedSpeed,
             isNewRecord,
         });
-        this.ui.updateGameOverCoins(earnedCoins, this.progression.getCoins());
+        this.ui.renderMissionSummary(
+            missionResult.sessionMissions,
+            missionResult.completedAchievements
+        );
+        this.ui.updateGameOverCoins(totalEarned, this.progression.getCoins());
     }
 
     update() {
@@ -316,8 +349,14 @@ export class Game {
         const wasGrounded = this._prevGrounded;
 
         // 音效触发（在 handleInput 之前检测 action）
-        if (actions.left || actions.right) this.sound.playLaneSwitch();
-        if (actions.slide && this.player.isGrounded) this.sound.playSlide();
+        if (actions.left || actions.right) {
+            this.sound.playLaneSwitch();
+            this.missionSystem.incrementStat('sessionLaneSwitches');
+        }
+        if (actions.slide && this.player.isGrounded) {
+            this.sound.playSlide();
+            this.missionSystem.incrementStat('sessionSlides');
+        }
 
         // 玩家输入 & 更新
         this.player.handleInput(actions);
@@ -327,6 +366,7 @@ export class Game {
         if (wasGrounded && !this.player.isGrounded && this.player.velocityY > 0) {
             this.particles.triggerJumpDust(this.player.position);
             this.sound.playJump();
+            this.missionSystem.incrementStat('sessionJumps');
         }
         // 粒子触发：落地
         if (!wasGrounded && this.player.isGrounded) {
@@ -386,6 +426,7 @@ export class Game {
                     if (this.rideSystem.tryTrigger()) {
                         this.sound.playRideStart();
                         this.ui.flashMilestoneText('BUS RIDE!');
+                        this.missionSystem.incrementStat('sessionRides');
                     }
                 }
             }
@@ -417,6 +458,7 @@ export class Game {
                     this.ui.hidePowerUp();
                     this.cameraCtrl.shake(0.3);
                     hit.active = false;
+                    this.missionSystem.incrementStat('sessionShieldsUsed');
                 } else {
                     this.player.die();
                     if (this.particles) this.particles.triggerExplosion(this.player.position);
@@ -439,6 +481,7 @@ export class Game {
             this.sound.playCoinPickup();
             this.ui.updateCoinCount(this.score.coins);
             this.ui.flashCoinPopup(collectedRideCoins.length * 10 * this.score.multiplier);
+            this.missionSystem.incrementStat('sessionCoins', collectedRideCoins.length);
         }
 
         // 金币收集
@@ -454,6 +497,7 @@ export class Game {
             this.sound.playCoinPickup();
             this.ui.updateCoinCount(this.score.coins);
             this.ui.flashCoinPopup(collectedCoins.length * 10 * this.score.multiplier);
+            this.missionSystem.incrementStat('sessionCoins', collectedCoins.length);
         }
 
         // 道具收集
@@ -465,6 +509,7 @@ export class Game {
             pu.mesh.visible = false;
             this.powerUpSystem.activate(pu.type);
             this.sound.playPowerupPickup();
+            this.missionSystem.incrementStat('sessionPowerUps');
             this.ui.showPowerUp(
                 pu.type,
                 this.powerUpSystem.getDuration(pu.type),
@@ -495,6 +540,23 @@ export class Game {
         this.ui.updateScore(this.score.score);
         this.ui.updateDistance(this.score.distance);
         this.ui.update(dt);
+
+        // 任务统计：持续量
+        this.missionSystem.recordStat('sessionDistance', this.score.distance);
+        this.missionSystem.recordStat('sessionScore', this.score.score);
+        this.missionSystem.recordStat('sessionMaxSpeed', speed);
+
+        // 任务完成检查
+        const completedMissions = this.missionSystem.checkSessionMissions();
+        for (const m of completedMissions) {
+            this.sound.playMissionComplete();
+            this.ui.flashMissionComplete(m.def.description, m.def.reward);
+        }
+
+        // 任务 HUD 更新（仅在进度变化时刷新 DOM）
+        if (this.missionSystem.hasProgressChanged()) {
+            this.ui.renderMissionTracker(this.missionSystem.getActiveSessionMissions());
+        }
 
         // 里程碑检测
         const milestone = this.score.checkMilestone();

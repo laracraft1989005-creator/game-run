@@ -33,6 +33,7 @@
             <div class="menu-buttons">
                 <button id="btn-start" class="btn">开始游戏</button>
                 <button id="btn-shop" class="btn btn-secondary">商店</button>
+                <button id="btn-missions" class="btn btn-secondary">任务</button>
             </div>
             <p class="controls-hint">
                 ← → 切换车道 &nbsp;|&nbsp; ↑ / 空格 跳跃 &nbsp;|&nbsp; ↓ 滑铲<br>
@@ -53,6 +54,18 @@
                 <div id="shop-upgrades" class="shop-grid"></div>
 
                 <button id="btn-shop-back" class="btn btn-secondary">返回</button>
+            </div>
+        </div>
+
+        <!-- 任务面板 -->
+        <div id="missions" class="overlay hidden">
+            <div class="missions-panel">
+                <h2>任务</h2>
+                <h3 class="shop-section-title">本局任务</h3>
+                <div id="missions-session" class="missions-list"></div>
+                <h3 class="shop-section-title">成就</h3>
+                <div id="missions-achievements" class="missions-list"></div>
+                <button id="btn-missions-back" class="btn btn-secondary">返回</button>
             </div>
         </div>
 
@@ -78,6 +91,8 @@
             <button id="btn-mute" class="mute-btn">🔊</button>
             <div id="milestone-popup" class="milestone-popup hidden"></div>
             <div id="coin-popup" class="coin-popup hidden"></div>
+            <div id="mission-tracker" class="mission-tracker hidden"></div>
+            <div id="mission-toast" class="mission-toast hidden"></div>
         </div>
 
         <!-- 结算 -->
@@ -106,6 +121,7 @@
                         <span id="stat-speed" class="stat-value">0</span>
                     </div>
                 </div>
+                <div id="mission-summary" class="mission-summary hidden"></div>
                 <p class="coins-earned">获得金币: <span id="earned-coins">0</span> · 总计: <span id="total-coins">0</span></p>
                 <button id="btn-restart" class="btn">再来一局</button>
             </div>

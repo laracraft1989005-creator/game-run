@@ -24,6 +24,21 @@
 
 ## 版本历史
 
+### v1.3 — 任务系统
+- **单局任务**（每局随机3个）
+  - 从 16 种任务模板中按类别去重随机抽取
+  - 类型涵盖：金币收集、跑步距离、跳跃/滑铲次数、分数、道具、骑乘、变道、速度
+  - 完成即时奖励金币，HUD 实时显示进度
+  - 任务完成触发专属音效 + 浮动 toast 提示
+- **永久成就**（11 个里程碑）
+  - 累计距离、金币、局数、跳跃、滑铲、骑乘、角色解锁
+  - 终身统计跨局累积，localStorage 持久化
+  - 成就完成在结算页展示 + 金币奖励
+- **任务面板**：菜单页"任务"按钮，查看当前任务进度和全部成就
+- **结算页任务摘要**：显示本局任务完成情况和解锁的成就
+- **HUD 任务追踪器**：游戏中左下角显示 3 个任务实时进度
+- **ProgressionManager 扩展**：向下兼容 v1.2 存档数据
+
 ### v1.2 — 车顶骑乘系统
 - **公交车骑乘奖励阶段**
   - 弹射板触发时 60% 概率召唤公交车
@@ -156,7 +171,7 @@ city-runner/
 │   └── obstacles/          障碍物模型 GLB
 └── src/
     ├── core/               Game, InputManager, AssetManager, SoundManager, UIManager
-    ├── gameplay/           ScoreManager, DifficultyManager, CoinSystem, PowerUpSystem, ObstaclePatterns, ProgressionManager
+    ├── gameplay/           ScoreManager, DifficultyManager, CoinSystem, PowerUpSystem, ObstaclePatterns, ProgressionManager, MissionSystem, MissionDefinitions
     ├── player/             PlayerController, CharacterModel, AnimationController
     ├── rendering/          SceneSetup, Camera, Lighting, Sky, ThemeManager
     └── world/              ChunkManager, CityChunk, LaneConfig
