@@ -32,7 +32,8 @@ export const SESSION_MISSIONS = [
     { id: 's_powerups_3', category: 'powerup', stat: 'sessionPowerUps', value: 3,    reward: 100,  description: '拾取3个道具' },
 
     // 骑乘类
-    { id: 's_ride_1',    category: 'ride',     stat: 'sessionRides',    value: 1,    reward: 80,   description: '触发一次公交骑乘' },
+    { id: 's_ride_1',    category: 'ride',     stat: 'sessionRides',    value: 1,    reward: 80,   description: '触发一次载具骑乘' },
+    { id: 's_ride_2',    category: 'ride',     stat: 'sessionRides',    value: 2,    reward: 200,  description: '单局骑乘2次' },
 
     // 变道类
     { id: 's_lanes_20',  category: 'lanes',    stat: 'sessionLaneSwitches', value: 20, reward: 70, description: '切换车道20次' },
@@ -63,6 +64,7 @@ export const ACHIEVEMENT_MISSIONS = [
 
     // 骑乘累计
     { id: 'a_rides_10',    stat: 'totalRides',   value: 10,    reward: 300,  description: '累计骑乘10次' },
+    { id: 'a_rides_30',    stat: 'totalRides',   value: 30,    reward: 800,  description: '累计骑乘30次' },
 
     // 解锁类（动态检查）
     { id: 'a_skins_all',   stat: 'totalSkinsUnlocked', value: 6, reward: 2000, description: '解锁全部角色' },

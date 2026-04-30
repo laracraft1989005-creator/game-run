@@ -24,6 +24,22 @@
 
 ## 版本历史
 
+### v1.4 — 多样化乘骑载具
+- **3 种载具类型**（弹射板触发时按权重随机出现）
+  - **公交车** (50%)：原版载具，高度 2.8，时长 4 秒，24 金币
+  - **卡车** (35%)：双段车身（驾驶室+货箱），高度 2.4，时长 3.5 秒，18 金币
+  - **直升机** (15%)：稀有载具，从空中降落，高度 4.5，时长 5 秒，30 金币
+- **直升机专属动画**
+  - 主旋翼 + 尾旋翼实时旋转
+  - 悬停时机身轻微上下浮动
+  - 从空中降落，结束时向上飞走（其他载具左右滑动）
+- **载具专属音效**
+  - 公交车：原版双音喇叭
+  - 卡车：低沉柴油引擎 + 喇叭
+  - 直升机：旋翼加速 + 高音呼啸
+- **UI 提示**：触发时显示对应载具名称（BUS/TRUCK/HELI RIDE!）
+- **任务扩展**：新增"单局骑乘2次"任务和"累计骑乘30次"成就
+
 ### v1.3 — 任务系统
 - **单局任务**（每局随机3个）
   - 从 16 种任务模板中按类别去重随机抽取
@@ -171,7 +187,7 @@ city-runner/
 │   └── obstacles/          障碍物模型 GLB
 └── src/
     ├── core/               Game, InputManager, AssetManager, SoundManager, UIManager
-    ├── gameplay/           ScoreManager, DifficultyManager, CoinSystem, PowerUpSystem, ObstaclePatterns, ProgressionManager, MissionSystem, MissionDefinitions
+    ├── gameplay/           ScoreManager, DifficultyManager, CoinSystem, PowerUpSystem, ObstaclePatterns, ProgressionManager, MissionSystem, MissionDefinitions, RideSystem, Vehicles
     ├── player/             PlayerController, CharacterModel, AnimationController
     ├── rendering/          SceneSetup, Camera, Lighting, Sky, ThemeManager
     └── world/              ChunkManager, CityChunk, LaneConfig

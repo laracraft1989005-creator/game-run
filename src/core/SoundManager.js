@@ -307,11 +307,24 @@ export class SoundManager {
         this._noise(0.15, 3000, 0.15);
     }
 
-    playRideStart() {
+    playRideStart(vehicleType = 'bus') {
         if (!this.audioCtx) return;
-        this._tone(220, 0.3, 'sawtooth', 0.25);
-        this._tone(330, 0.3, 'sawtooth', 0.2);
-        this._sweep(200, 600, 0.5, 'sine', 0.15);
+        if (vehicleType === 'helicopter') {
+            // 直升机：旋翼加速 + 高音呼啸
+            this._sweep(80, 280, 0.6, 'sawtooth', 0.2);
+            this._sweep(400, 1200, 0.4, 'triangle', 0.15);
+            this._noise(0.5, 1500, 0.12);
+        } else if (vehicleType === 'truck') {
+            // 卡车：低沉柴油引擎 + 喇叭
+            this._tone(110, 0.4, 'sawtooth', 0.3);
+            this._tone(165, 0.4, 'sawtooth', 0.22);
+            this._sweep(150, 500, 0.5, 'square', 0.12);
+        } else {
+            // 公交车（原版）
+            this._tone(220, 0.3, 'sawtooth', 0.25);
+            this._tone(330, 0.3, 'sawtooth', 0.2);
+            this._sweep(200, 600, 0.5, 'sine', 0.15);
+        }
     }
 
     playRideEnd() {

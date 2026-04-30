@@ -1,17 +1,13 @@
 /**
  * RideSystem — 车顶骑乘奖励阶段
- * 弹射板触发 → 公交车驶入 → 玩家在车顶跑 → 车辆驶离 → 降落
+ * 弹射板触发 → 载具进入 → 玩家在车顶/平台跑 → 载具离开 → 降落
+ * v1.4: 支持多种载具（公交车、卡车、直升机）
  */
 import * as THREE from 'three';
 import { LANES } from '../world/LaneConfig.js?v=202604011500';
+import { VEHICLE_TYPES, pickVehicleType, createVehicleMesh } from './Vehicles.js?v=202604011500';
 
-const RIDE_HEIGHT = 2.8;
-const RIDE_DURATION = 4.0;
-const RISE_DURATION = 0.5;
-const DESCEND_DURATION = 0.8;
 const RIDE_CHANCE = 0.6;
-const VEHICLE_LENGTH = 20;
-const COIN_Y_OFFSET = 0.8;
 
 export class RideSystem {
     constructor(scene) {
@@ -20,10 +16,12 @@ export class RideSystem {
         this.timer = 0;
         this._groundY = 0;
         this._vehicleMesh = null;
-        this._vehicleTargetX = 0;
+        this._vehicleType = null;
+        this._config = null;
         this._rideCoins = [];
+        this._rotorTime = 0;
 
-        // 共享金币几何/材质（与 CoinSystem 一致）
+        // 共享金币几何/材质
         this._coinGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.08, 12);
         this._coinMat = new THREE.MeshStandardMaterial({
             color: 0xFFD700,
@@ -36,21 +34,12 @@ export class RideSystem {
 
     // ─── 状态查询 ───
 
-    isActive() {
-        return this.state !== 'idle';
-    }
-
-    isRiding() {
-        return this.state === 'riding';
-    }
-
-    getGroundY() {
-        return this._groundY;
-    }
-
-    getRideCoins() {
-        return this._rideCoins;
-    }
+    isActive() { return this.state !== 'idle'; }
+    isRiding() { return this.state === 'riding'; }
+    getGroundY() { return this._groundY; }
+    getRideCoins() { return this._rideCoins; }
+    getVehicleType() { return this._vehicleType; }
+    getVehicleName() { return this._config ? this._config.name : 'BUS RIDE!'; }
 
     // ─── 生命周期 ───
 
@@ -58,6 +47,8 @@ export class RideSystem {
         if (this.state !== 'idle') return false;
         if (Math.random() > RIDE_CHANCE) return false;
 
+        this._vehicleType = pickVehicleType();
+        this._config = VEHICLE_TYPES[this._vehicleType];
         this.state = 'rising';
         this.timer = 0;
         this._createVehicle();
@@ -68,64 +59,88 @@ export class RideSystem {
         if (this.state === 'idle') return;
 
         this.timer += dt;
+        this._rotorTime += dt;
+
+        // 直升机旋翼始终旋转
+        if (this._vehicleMesh && this._vehicleType === 'helicopter') {
+            this._vehicleMesh.traverse(c => {
+                if (c.name === 'mainRotor') c.rotation.y = this._rotorTime * 25;
+                if (c.name === 'tailRotor') c.rotation.x = this._rotorTime * 35;
+            });
+        }
+
+        const cfg = this._config;
 
         if (this.state === 'rising') {
-            const t = Math.min(1, this.timer / RISE_DURATION);
+            const t = Math.min(1, this.timer / cfg.riseDuration);
             const ease = t * t * (3 - 2 * t); // smoothstep
-            this._groundY = RIDE_HEIGHT * ease;
+            this._groundY = cfg.rideHeight * ease;
 
-            // 车辆从右侧滑入
             if (this._vehicleMesh) {
-                const enterT = Math.min(1, this.timer / RISE_DURATION);
-                this._vehicleMesh.position.x = THREE.MathUtils.lerp(18, 0, enterT * enterT);
+                if (cfg.entryDirection === 'air') {
+                    // 直升机从空中降落
+                    this._vehicleMesh.position.x = THREE.MathUtils.lerp(8, 0, ease);
+                    this._vehicleMesh.position.y = THREE.MathUtils.lerp(8, 0, ease);
+                } else {
+                    // 普通车辆从右侧滑入
+                    const enterT = ease;
+                    this._vehicleMesh.position.x = THREE.MathUtils.lerp(18, 0, enterT);
+                    this._vehicleMesh.position.y = 0;
+                }
                 this._vehicleMesh.position.z = playerPos.z;
             }
 
-            if (this.timer >= RISE_DURATION) {
+            if (this.timer >= cfg.riseDuration) {
                 this.state = 'riding';
                 this.timer = 0;
-                this._groundY = RIDE_HEIGHT;
+                this._groundY = cfg.rideHeight;
                 this._spawnRideCoins(playerPos);
             }
         }
 
         else if (this.state === 'riding') {
-            this._groundY = RIDE_HEIGHT;
+            this._groundY = cfg.rideHeight;
 
-            // 车辆跟随玩家 Z，固定 X=0
             if (this._vehicleMesh) {
                 this._vehicleMesh.position.x = 0;
+                this._vehicleMesh.position.y = this._vehicleType === 'helicopter'
+                    ? Math.sin(this._rotorTime * 2) * 0.08  // 直升机轻微悬停
+                    : 0;
                 this._vehicleMesh.position.z = playerPos.z;
             }
 
-            // 更新金币碰撞盒（金币跟随车辆世界位置）
             this._updateCoinBoxes();
 
-            // 金币旋转动画
             for (const coin of this._rideCoins) {
                 if (!coin.collected) {
                     coin.mesh.rotation.z += 3.0 * dt;
                 }
             }
 
-            if (this.timer >= RIDE_DURATION) {
+            if (this.timer >= cfg.rideDuration) {
                 this.state = 'descending';
                 this.timer = 0;
             }
         }
 
         else if (this.state === 'descending') {
-            const t = Math.min(1, this.timer / DESCEND_DURATION);
+            const t = Math.min(1, this.timer / cfg.descendDuration);
             const ease = t * t; // ease-in
-            this._groundY = RIDE_HEIGHT * (1 - ease);
+            this._groundY = cfg.rideHeight * (1 - ease);
 
-            // 车辆向左驶离
             if (this._vehicleMesh) {
-                this._vehicleMesh.position.x = THREE.MathUtils.lerp(0, -20, ease);
+                if (cfg.entryDirection === 'air') {
+                    // 直升机向上飞走
+                    this._vehicleMesh.position.x = THREE.MathUtils.lerp(0, -6, ease);
+                    this._vehicleMesh.position.y = THREE.MathUtils.lerp(0, 10, ease);
+                } else {
+                    this._vehicleMesh.position.x = THREE.MathUtils.lerp(0, -20, ease);
+                    this._vehicleMesh.position.y = 0;
+                }
                 this._vehicleMesh.position.z = playerPos.z;
             }
 
-            if (this.timer >= DESCEND_DURATION) {
+            if (this.timer >= cfg.descendDuration) {
                 this._finish();
             }
         }
@@ -139,6 +154,8 @@ export class RideSystem {
         this.state = 'idle';
         this.timer = 0;
         this._groundY = 0;
+        this._vehicleType = null;
+        this._config = null;
         this._removeVehicle();
         this._clearRideCoins();
     }
@@ -147,68 +164,14 @@ export class RideSystem {
 
     _createVehicle() {
         this._removeVehicle();
-
-        const group = new THREE.Group();
-        const bodyH = 2.5;
-        const roofY = RIDE_HEIGHT; // 车顶面 = 骑乘高度
-
-        // 车身
-        const bodyGeo = new THREE.BoxGeometry(8, bodyH, VEHICLE_LENGTH);
-        const bodyMat = new THREE.MeshStandardMaterial({
-            color: 0x2288AA,
-            emissive: 0x114455,
-            emissiveIntensity: 0.3,
-            roughness: 0.4,
-            metalness: 0.2,
-        });
-        const body = new THREE.Mesh(bodyGeo, bodyMat);
-        body.position.y = roofY - bodyH / 2;
-        body.castShadow = true;
-        group.add(body);
-
-        // 车顶平面
-        const roofGeo = new THREE.BoxGeometry(8.2, 0.1, VEHICLE_LENGTH + 0.2);
-        const roofMat = new THREE.MeshStandardMaterial({
-            color: 0x999999,
-            roughness: 0.8,
-        });
-        const roof = new THREE.Mesh(roofGeo, roofMat);
-        roof.position.y = roofY;
-        roof.receiveShadow = true;
-        group.add(roof);
-
-        // 窗户 (两侧)
-        const winGeo = new THREE.BoxGeometry(0.1, 0.8, VEHICLE_LENGTH - 2);
-        const winMat = new THREE.MeshStandardMaterial({
-            color: 0x88DDFF,
-            emissive: 0x44AACC,
-            emissiveIntensity: 0.4,
-            transparent: true,
-            opacity: 0.6,
-        });
-        for (const side of [-1, 1]) {
-            const win = new THREE.Mesh(winGeo, winMat);
-            win.position.set(side * 4.05, roofY - bodyH / 2 + 0.5, 0);
-            group.add(win);
+        const group = createVehicleMesh(this._vehicleType);
+        const cfg = this._config;
+        // 根据进入方向设置起始位置
+        if (cfg.entryDirection === 'air') {
+            group.position.set(8, 8, 0);
+        } else {
+            group.position.set(18, 0, 0);
         }
-
-        // 车轮 (4个)
-        const wheelGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.4, 8);
-        wheelGeo.rotateZ(Math.PI / 2);
-        const wheelMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
-        const wheelPositions = [
-            [-3.5, 0.5, -7], [3.5, 0.5, -7],
-            [-3.5, 0.5, 7], [3.5, 0.5, 7],
-        ];
-        for (const [wx, wy, wz] of wheelPositions) {
-            const wheel = new THREE.Mesh(wheelGeo, wheelMat);
-            wheel.position.set(wx, wy, wz);
-            group.add(wheel);
-        }
-
-        // 初始位置（场景右侧外）
-        group.position.set(18, 0, 0);
-
         this._vehicleMesh = group;
         this.scene.add(group);
     }
@@ -228,13 +191,14 @@ export class RideSystem {
     _spawnRideCoins(playerPos) {
         this._clearRideCoins();
 
-        const coinY = RIDE_HEIGHT + COIN_Y_OFFSET;
-        const rows = 8;
+        const cfg = this._config;
+        const coinY = cfg.rideHeight + cfg.coinYOffset;
+        const rows = cfg.coinRows;
         const spacing = 2.0;
         const startZ = playerPos.z - rows * spacing / 2;
 
         for (let row = 0; row < rows; row++) {
-            for (let laneIdx = 0; laneIdx < 3; laneIdx++) {
+            for (let laneIdx = 0; laneIdx < cfg.coinLanes; laneIdx++) {
                 const mesh = new THREE.Mesh(this._coinGeo, this._coinMat);
                 mesh.rotation.x = Math.PI / 2;
                 const z = startZ - row * spacing;

@@ -424,8 +424,8 @@ export class Game {
                     this.sound.playJumpPad();
                     // 尝试触发骑乘
                     if (this.rideSystem.tryTrigger()) {
-                        this.sound.playRideStart();
-                        this.ui.flashMilestoneText('BUS RIDE!');
+                        this.sound.playRideStart(this.rideSystem.getVehicleType());
+                        this.ui.flashMilestoneText(this.rideSystem.getVehicleName());
                         this.missionSystem.incrementStat('sessionRides');
                     }
                 }
